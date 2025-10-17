@@ -751,6 +751,9 @@ if (!defined('ABSPATH')) {
                         <button class="surf-refresh-btn" id="debug-database" style="background: #ff6b6b; color: white;">
                             Debug DB
                         </button>
+                        <button class="surf-refresh-btn" id="migrate-database" style="background: #28a745; color: white;">
+                            Fix Schema
+                        </button>
                     </div>
                 </div>
                 
@@ -1551,6 +1554,41 @@ jQuery(document).ready(function($) {
         });
     }
     
+    function migrateDatabase() {
+        if (!confirm('This will modify your database schema. Are you sure you want to continue?')) {
+            return;
+        }
+        
+        const button = $('#migrate-database');
+        const originalText = button.text();
+        button.text('Migrating...').prop('disabled', true);
+        
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'POST',
+            data: {
+                action: 'surf_social_migrate_database',
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('Migration completed successfully!\n\n' + JSON.stringify(response.data.results, null, 2));
+                    // Refresh the page to reload everything
+                    location.reload();
+                } else {
+                    alert('Migration completed with errors:\n\n' + JSON.stringify(response.data, null, 2));
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Migration error:', error, xhr.responseText);
+                alert('Migration error: ' + error);
+            },
+            complete: function() {
+                button.text(originalText).prop('disabled', false);
+            }
+        });
+    }
+    
     // Support management event handlers
     $('#refresh-support-tickets').on('click', function() {
         loadSupportTickets();
@@ -1579,6 +1617,11 @@ jQuery(document).ready(function($) {
     // Debug database button
     $('#debug-database').on('click', function() {
         debugDatabase();
+    });
+    
+    // Migrate database button
+    $('#migrate-database').on('click', function() {
+        migrateDatabase();
     });
     
     

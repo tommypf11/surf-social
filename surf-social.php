@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.50
+Version: 1.0.51
 Author: Thomas Fraher
 */
 
@@ -64,6 +64,7 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
         add_action('wp_ajax_surf_social_close_support_ticket', array($this, 'ajax_close_support_ticket'));
         add_action('wp_ajax_surf_social_debug_database', array($this, 'ajax_debug_database'));
+        add_action('wp_ajax_surf_social_migrate_database', array($this, 'ajax_migrate_database'));
     }
     
     /**
@@ -1180,20 +1181,31 @@ class Surf_Social {
     private function migrate_user_id_columns() {
         global $wpdb;
         
-        // Check if migration is needed
-        $messages_table = $wpdb->prefix . 'surf_social_messages';
-        $support_table = $wpdb->prefix . 'surf_social_support_messages';
+        $tables = array(
+            'surf_social_messages' => array('user_id'),
+            'surf_social_individual_messages' => array('sender_id', 'recipient_id'),
+            'surf_social_support_messages' => array('user_id')
+        );
         
-        // Check if user_id column is still bigint
-        $messages_column = $wpdb->get_row("SHOW COLUMNS FROM $messages_table LIKE 'user_id'");
-        $support_column = $wpdb->get_row("SHOW COLUMNS FROM $support_table LIKE 'user_id'");
-        
-        if ($messages_column && strpos($messages_column->Type, 'bigint') !== false) {
-            $wpdb->query("ALTER TABLE $messages_table MODIFY COLUMN user_id varchar(100) NOT NULL");
-        }
-        
-        if ($support_column && strpos($support_column->Type, 'bigint') !== false) {
-            $wpdb->query("ALTER TABLE $support_table MODIFY COLUMN user_id varchar(100) NOT NULL");
+        foreach ($tables as $table => $columns) {
+            $table_name = $wpdb->prefix . $table;
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+            
+            if (!$table_exists) {
+                continue;
+            }
+            
+            foreach ($columns as $column) {
+                $column_info = $wpdb->get_row($wpdb->prepare(
+                    "SHOW COLUMNS FROM $table_name LIKE %s",
+                    $column
+                ), ARRAY_A);
+                
+                if ($column_info && strpos($column_info['Type'], 'bigint') !== false) {
+                    $sql = "ALTER TABLE $table_name MODIFY COLUMN $column varchar(100) NOT NULL";
+                    $wpdb->query($sql);
+                }
+            }
         }
     }
     
@@ -1439,6 +1451,78 @@ class Surf_Social {
         }
         
         wp_send_json_success($debug_info);
+    }
+    
+    /**
+     * AJAX handler for migrating database schema
+     */
+    public function ajax_migrate_database() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
+        
+        global $wpdb;
+        
+        $results = array();
+        $errors = array();
+        
+        // Tables and their user_id columns to migrate
+        $migrations = array(
+            'surf_social_messages' => array('user_id'),
+            'surf_social_individual_messages' => array('sender_id', 'recipient_id'),
+            'surf_social_support_messages' => array('user_id')
+        );
+        
+        foreach ($migrations as $table => $columns) {
+            $table_name = $wpdb->prefix . $table;
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+            
+            if (!$table_exists) {
+                $results[$table] = 'Table does not exist';
+                continue;
+            }
+            
+            foreach ($columns as $column) {
+                // Check current column type
+                $column_info = $wpdb->get_row($wpdb->prepare(
+                    "SHOW COLUMNS FROM $table_name LIKE %s",
+                    $column
+                ), ARRAY_A);
+                
+                if (!$column_info) {
+                    $errors[] = "Column $column not found in $table_name";
+                    continue;
+                }
+                
+                $current_type = $column_info['Type'];
+                
+                // Only migrate if it's still bigint
+                if (strpos($current_type, 'bigint') !== false) {
+                    $sql = "ALTER TABLE $table_name MODIFY COLUMN $column varchar(100) NOT NULL";
+                    $result = $wpdb->query($sql);
+                    
+                    if ($result === false) {
+                        $errors[] = "Failed to migrate $column in $table_name: " . $wpdb->last_error;
+                    } else {
+                        $results[$table][$column] = "Migrated from $current_type to varchar(100)";
+                    }
+                } else {
+                    $results[$table][$column] = "Already varchar type: $current_type";
+                }
+            }
+        }
+        
+        if (empty($errors)) {
+            wp_send_json_success(array(
+                'message' => 'Database migration completed successfully',
+                'results' => $results
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => 'Migration completed with errors',
+                'results' => $results,
+                'errors' => $errors
+            ));
+        }
     }
     
     
