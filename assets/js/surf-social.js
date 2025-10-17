@@ -775,12 +775,7 @@
                 // Store messages locally
                 individualChats.set(user.id, data.messages);
                 
-                data.messages.forEach(msg => {
-                    const messageEl = createMessageElement(msg);
-                    chatMessages.appendChild(messageEl);
-                });
-                
-                scrollToBottom();
+                renderMessages(data.messages);
             } else {
                 showEmptyState(`Start a conversation with ${user.name}`);
             }
@@ -824,12 +819,7 @@
                 // Store messages locally
                 individualChats.set('admin', data.messages);
                 
-                data.messages.forEach(msg => {
-                    const messageEl = createMessageElement(msg);
-                    chatMessages.appendChild(messageEl);
-                });
-                
-                scrollToBottom();
+                renderMessages(data.messages);
             } else {
                 showEmptyState('How can we help you today?');
             }
@@ -882,7 +872,18 @@
             return;
         }
         
+        let lastDate = null;
+        
         messages.forEach(msg => {
+            const messageDate = new Date(msg.created_at).toDateString();
+            
+            // Add date divider if this is a new day
+            if (lastDate !== messageDate) {
+                const divider = createDateDivider(msg.created_at);
+                chatMessages.appendChild(divider);
+                lastDate = messageDate;
+            }
+            
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
         });
@@ -910,31 +911,48 @@
         const content = document.createElement('div');
         content.className = 'surf-message-content';
         
-        const header = document.createElement('div');
-        header.className = 'surf-message-header';
-        
         const name = document.createElement('div');
         name.className = 'surf-message-name';
         name.textContent = msg.user_name;
-        
-        const time = document.createElement('div');
-        time.className = 'surf-message-time';
-        time.textContent = formatTime(msg.created_at);
-        
-        header.appendChild(name);
-        header.appendChild(time);
         
         const bubble = document.createElement('div');
         bubble.className = 'surf-message-bubble';
         bubble.textContent = msg.message;
         
-        content.appendChild(header);
+        content.appendChild(name);
         content.appendChild(bubble);
         
         message.appendChild(avatar);
         message.appendChild(content);
         
         return message;
+    }
+    
+    function createDateDivider(dateString) {
+        const divider = document.createElement('div');
+        divider.className = 'surf-date-divider';
+        
+        const line = document.createElement('div');
+        line.className = 'surf-date-line';
+        
+        const date = document.createElement('div');
+        date.className = 'surf-date-text';
+        date.textContent = formatDate(dateString);
+        
+        divider.appendChild(line);
+        divider.appendChild(date);
+        divider.appendChild(line.cloneNode(true));
+        
+        return divider;
+    }
+    
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric'
+        });
     }
     
     /**

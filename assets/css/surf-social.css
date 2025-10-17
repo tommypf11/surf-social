@@ -185,7 +185,7 @@
     gap: 12px;
     animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     margin-bottom: 16px;
-    align-items: flex-start;
+    align-items: center;
 }
 
 @keyframes slideInUp {
@@ -219,21 +219,20 @@
 .surf-message-content {
     max-width: 70%;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    gap: 8px;
     flex: 1;
+    align-items: center;
 }
 
 .surf-message.own .surf-message-content {
-    align-items: flex-end;
+    flex-direction: row-reverse;
 }
 
 .surf-message-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
 }
 
 .surf-message-name {
@@ -256,6 +255,28 @@
     word-wrap: break-word;
     position: relative;
     max-width: 280px;
+}
+
+/* Date Divider */
+.surf-date-divider {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    gap: 12px;
+}
+
+.surf-date-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.surf-date-text {
+    font-size: 12px;
+    color: var(--surf-text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 0 8px;
 }
 
 .surf-message:not(.own) .surf-message-bubble {
@@ -302,8 +323,8 @@
 .surf-chat-input {
     flex: 1;
     padding: 10px 14px;
-    background: rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: white;
+    border: 1px solid black;
     border-radius: 8px;
     color: var(--surf-text);
     font-size: 14px;
@@ -316,7 +337,7 @@
 }
 
 .surf-chat-input:focus {
-    background: rgba(0, 0, 0, 0.08);
+    background: white;
     border-color: var(--surf-accent);
 }
 
