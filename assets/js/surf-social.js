@@ -1351,26 +1351,117 @@
      */
     function initGuestRegistration() {
         if (config.currentUser.isGuest && !hasSetGuestInfo) {
-            // Show guest registration form
-            if (guestRegistration) {
-                guestRegistration.style.display = 'flex';
-            }
-            if (normalChat) {
-                normalChat.style.display = 'none';
-            }
-            
-            // Focus on name input
-            if (nameInput) {
-                setTimeout(() => nameInput.focus(), 100);
+            // Check if guest info is saved in localStorage
+            const savedGuestInfo = loadGuestInfoFromStorage();
+            if (savedGuestInfo) {
+                // Auto-login with saved info
+                autoLoginGuest(savedGuestInfo);
+            } else {
+                // Show guest registration form
+                showGuestRegistrationForm();
             }
         } else {
             // Show normal chat
-            if (guestRegistration) {
-                guestRegistration.style.display = 'none';
+            showNormalChat();
+        }
+    }
+    
+    /**
+     * Load guest info from localStorage
+     */
+    function loadGuestInfoFromStorage() {
+        try {
+            const savedData = localStorage.getItem('surf_guest_info');
+            if (savedData) {
+                const guestInfo = JSON.parse(savedData);
+                // Validate the saved data structure
+                if (guestInfo.name && guestInfo.email && guestInfo.userId) {
+                    return guestInfo;
+                }
             }
-            if (normalChat) {
-                normalChat.style.display = 'flex';
+        } catch (error) {
+            console.error('Failed to load guest info from localStorage:', error);
+        }
+        return null;
+    }
+    
+    /**
+     * Save guest info to localStorage
+     */
+    function saveGuestInfoToStorage(name, email, userId) {
+        try {
+            const guestInfo = {
+                name: name,
+                email: email,
+                userId: userId,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('surf_guest_info', JSON.stringify(guestInfo));
+        } catch (error) {
+            console.error('Failed to save guest info to localStorage:', error);
+        }
+    }
+    
+    /**
+     * Auto-login guest with saved info
+     */
+    function autoLoginGuest(savedGuestInfo) {
+        // Update user info
+        config.currentUser.name = savedGuestInfo.name;
+        config.currentUser.email = savedGuestInfo.email;
+        hasSetGuestInfo = true;
+        
+        // Update the saved info with current user ID if it has changed
+        if (savedGuestInfo.userId !== config.currentUser.id) {
+            saveGuestInfoToStorage(savedGuestInfo.name, savedGuestInfo.email, config.currentUser.id);
+        }
+        
+        // Update cursor name immediately
+        updateCurrentUserCursor();
+        
+        // Update avatar dock
+        updateAvatarDock();
+        
+        // Show normal chat
+        showNormalChat();
+        
+        // Broadcast updated presence
+        broadcastPresence();
+        
+        // Focus on chat input
+        setTimeout(() => {
+            if (chatInput) {
+                chatInput.focus();
             }
+        }, 100);
+    }
+    
+    /**
+     * Show guest registration form
+     */
+    function showGuestRegistrationForm() {
+        if (guestRegistration) {
+            guestRegistration.style.display = 'flex';
+        }
+        if (normalChat) {
+            normalChat.style.display = 'none';
+        }
+        
+        // Focus on name input
+        if (nameInput) {
+            setTimeout(() => nameInput.focus(), 100);
+        }
+    }
+    
+    /**
+     * Show normal chat interface
+     */
+    function showNormalChat() {
+        if (guestRegistration) {
+            guestRegistration.style.display = 'none';
+        }
+        if (normalChat) {
+            normalChat.style.display = 'flex';
         }
     }
     
@@ -1463,6 +1554,9 @@
         try {
             // Show success animation
             showNameSuccessAnimation();
+            
+            // Save guest information to localStorage
+            saveGuestInfoToStorage(name, email, config.currentUser.id);
             
             // Save guest information to backend
             await saveGuestInfo(name, email);
