@@ -4,15 +4,15 @@
 
 /* Variables */
 :root {
-    --surf-primary: #1a1a2e;
-    --surf-secondary: #16213e;
-    --surf-accent: #0f3460;
-    --surf-success: #00b894;
-    --surf-warning: #fdcb6e;
-    --surf-danger: #e84393;
-    --surf-bg: #ECF0F1;
-    --surf-text: #FFFFFF;
-    --surf-text-muted: #BDC3C7;
+    --surf-primary: #000000;
+    --surf-secondary: #f5f5f5;
+    --surf-accent: #333333;
+    --surf-success: #000000;
+    --surf-warning: #666666;
+    --surf-danger: #000000;
+    --surf-bg: #ffffff;
+    --surf-text: #000000;
+    --surf-text-muted: #666666;
     --surf-border-radius: 16px;
     --surf-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
     --surf-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -70,7 +70,7 @@
     position: absolute;
     top: -5px;
     right: -5px;
-    background: #E74C3C;
+    background: var(--surf-primary);
     color: white;
     border-radius: 50%;
     width: 24px;
@@ -92,11 +92,11 @@
     max-width: 420px;
     height: 75vh;
     max-height: 650px;
-    background: rgba(22, 33, 62, 0.95);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: var(--surf-backdrop-blur);
     border-radius: var(--surf-border-radius);
     box-shadow: var(--surf-shadow);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     transform: translateY(100%) scale(0.95);
@@ -183,11 +183,11 @@
 }
 
 .surf-chat-messages::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.05);
 }
 
 .surf-chat-messages::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 3px;
 }
 
@@ -254,15 +254,15 @@
 }
 
 .surf-message:not(.own) .surf-message-bubble {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.08);
     color: var(--surf-text);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .surf-message.own .surf-message-bubble {
-    background: linear-gradient(135deg, var(--surf-accent) 0%, #1e3a8a 100%);
+    background: linear-gradient(135deg, var(--surf-primary) 0%, #333333 100%);
     color: white;
-    box-shadow: 0 2px 8px rgba(15, 52, 96, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .surf-message-time {
@@ -277,12 +277,12 @@
     align-items: center;
     gap: 8px;
     padding: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 #surf-social-widget .surf-chat-send {
     background: white !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
     color: black !important;
     cursor: pointer;
     padding: 8px;
@@ -301,8 +301,8 @@
 .surf-chat-input {
     flex: 1;
     padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     color: var(--surf-text);
     font-size: 14px;
@@ -315,7 +315,7 @@
 }
 
 .surf-chat-input:focus {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.08);
     border-color: var(--surf-accent);
 }
 
@@ -377,7 +377,7 @@
 }
 
 .surf-avatar-chip.surf-avatar-more {
-    background: var(--surf-secondary);
+    background: var(--surf-primary);
     font-size: 10px;
     font-weight: 700;
     cursor: pointer;
@@ -385,7 +385,7 @@
 }
 
 .surf-avatar-chip.surf-avatar-more:hover {
-    background: var(--surf-accent);
+    background: var(--surf-primary);
     transform: scale(1.05);
 }
 
@@ -397,7 +397,7 @@
     right: 5px;
     width: 12px;
     height: 12px;
-    background: #E74C3C;
+    background: var(--surf-primary);
     border-radius: 50%;
     border: 2px solid white;
     z-index: 3;
@@ -452,13 +452,13 @@
     bottom: 5px;
     right: 20px;
     font-size: 11px;
-    color: #95A5A6;
+    color: var(--surf-text-muted);
     z-index: 999995;
 }
 
 .surf-branding strong {
     font-weight: 600;
-    color: #7F8C8D;
+    color: var(--surf-text);
 }
 
 /* Responsive */
