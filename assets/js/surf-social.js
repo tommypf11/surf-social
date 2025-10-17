@@ -249,6 +249,7 @@
             channel.bind('client-user-left', handleUserLeft);
             channel.bind('client-individual-message', handleIndividualMessage);
             channel.bind('client-support-message', handleSupportMessage);
+            channel.bind('client-message-deleted', handleMessageDeleted);
         });
         
         channel.bind('pusher:subscription_error', function(error) {
@@ -341,6 +342,9 @@
                 break;
             case 'user-left':
                 handleUserLeft(data);
+                break;
+            case 'message-deleted':
+                handleMessageDeleted(data);
                 break;
         }
     }
@@ -1281,6 +1285,31 @@
         }
         
         updateAvatarDock();
+    }
+    
+    /**
+     * Handle message deletion
+     */
+    function handleMessageDeleted(data) {
+        const messageId = data.message_id;
+        
+        // Find and remove the message element
+        const messageElement = chatMessages.querySelector(`[data-message-id="${messageId}"]`);
+        if (messageElement) {
+            // Add fade out animation
+            messageElement.style.transition = 'opacity 0.3s ease-out';
+            messageElement.style.opacity = '0';
+            
+            setTimeout(() => {
+                messageElement.remove();
+                
+                // Check if there are any messages left
+                const remainingMessages = chatMessages.querySelectorAll('.surf-message');
+                if (remainingMessages.length === 0) {
+                    showEmptyState();
+                }
+            }, 300);
+        }
     }
     
     /**

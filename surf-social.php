@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.41
+Version: 1.0.42
 Author: Thomas Fraher
 */
 
@@ -57,6 +57,8 @@ class Surf_Social {
         add_action('init', array($this, 'add_cors_headers'));
         add_action('wp_ajax_surf_social_get_stats', array($this, 'ajax_get_stats'));
         add_action('wp_ajax_surf_social_get_user_submissions', array($this, 'ajax_get_user_submissions'));
+        add_action('wp_ajax_surf_social_get_messages', array($this, 'ajax_get_messages'));
+        add_action('wp_ajax_surf_social_delete_message', array($this, 'ajax_delete_message'));
     }
     
     /**
@@ -836,6 +838,142 @@ class Surf_Social {
             'current_page' => $page,
             'per_page' => $per_page
         ));
+    }
+    
+    /**
+     * AJAX handler for getting messages
+     */
+    public function ajax_get_messages() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        $messages_table = $wpdb->prefix . 'surf_social_messages';
+        $page = intval($_GET['page']) ?: 1;
+        $per_page = intval($_GET['per_page']) ?: 10;
+        $offset = ($page - 1) * $per_page;
+        
+        // Check if table exists, if not return empty results
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$messages_table'");
+        if (!$table_exists) {
+            wp_send_json_success(array(
+                'messages' => array(),
+                'total_count' => 0,
+                'total_pages' => 0,
+                'current_page' => $page,
+                'per_page' => $per_page
+            ));
+        }
+        
+        // Get total count
+        $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $messages_table WHERE channel = 'web'");
+        $total_pages = ceil($total_count / $per_page);
+        
+        // Get messages with pagination, sorted by most recent first
+        $messages = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id, user_id, user_name, message, created_at 
+                 FROM $messages_table 
+                 WHERE channel = 'web'
+                 ORDER BY created_at DESC 
+                 LIMIT %d OFFSET %d",
+                $per_page,
+                $offset
+            ),
+            ARRAY_A
+        );
+        
+        wp_send_json_success(array(
+            'messages' => $messages,
+            'total_count' => $total_count,
+            'total_pages' => $total_pages,
+            'current_page' => $page,
+            'per_page' => $per_page
+        ));
+    }
+    
+    /**
+     * AJAX handler for deleting messages
+     */
+    public function ajax_delete_message() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        $message_id = intval($_POST['message_id']);
+        if (!$message_id) {
+            wp_send_json_error('Invalid message ID');
+        }
+        
+        $messages_table = $wpdb->prefix . 'surf_social_messages';
+        
+        // Check if message exists and is from web channel
+        $message = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, user_id, user_name, message FROM $messages_table WHERE id = %d AND channel = 'web'",
+            $message_id
+        ));
+        
+        if (!$message) {
+            wp_send_json_error('Message not found or not from web channel');
+        }
+        
+        // Delete the message
+        $result = $wpdb->delete(
+            $messages_table,
+            array('id' => $message_id),
+            array('%d')
+        );
+        
+        if ($result) {
+            // Broadcast deletion event to all connected clients
+            $this->broadcast_message_deletion($message_id);
+            
+            wp_send_json_success('Message deleted successfully');
+        } else {
+            wp_send_json_error('Failed to delete message');
+        }
+    }
+    
+    /**
+     * Broadcast message deletion to all connected clients
+     */
+    private function broadcast_message_deletion($message_id) {
+        // Try Pusher first
+        if (get_option('surf_social_use_pusher', '1') === '1') {
+            $this->broadcast_via_pusher('message-deleted', array('message_id' => $message_id));
+        }
+        
+        // Try WebSocket as fallback
+        $websocket_url = get_option('surf_social_websocket_url');
+        if ($websocket_url) {
+            $this->broadcast_via_websocket('message-deleted', array('message_id' => $message_id));
+        }
+    }
+    
+    /**
+     * Broadcast via Pusher
+     */
+    private function broadcast_via_pusher($event, $data) {
+        // For now, we'll rely on the frontend to handle real-time updates
+        // In a full implementation, you'd use the Pusher PHP SDK here
+        // The frontend will handle the deletion through the admin interface
+    }
+    
+    /**
+     * Broadcast via WebSocket
+     */
+    private function broadcast_via_websocket($event, $data) {
+        // For now, we'll rely on the frontend to handle real-time updates
+        // In a full implementation, you'd use a WebSocket server here
+        // The frontend will handle the deletion through the admin interface
     }
     
     /**

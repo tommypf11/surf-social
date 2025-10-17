@@ -109,6 +109,71 @@ if (!defined('ABSPATH')) {
     font-family: monospace;
 }
 
+/* Message Management Table Styles */
+.surf-message-management-container {
+    margin-top: 20px;
+}
+
+.surf-message-management-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.surf-message-management-table th {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #1d2327;
+    border-bottom: 2px solid #e1e5e9;
+    white-space: nowrap;
+}
+
+.surf-message-management-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f1;
+    vertical-align: top;
+}
+
+.surf-message-management-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.surf-message-management-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.surf-message-content {
+    max-width: 300px;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
+.surf-message-actions {
+    white-space: nowrap;
+}
+
+.surf-delete-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+}
+
+.surf-delete-btn:hover {
+    background: #c82333;
+}
+
+.surf-delete-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
 /* User Submissions Table Styles */
 .surf-user-submissions-table-container {
     margin-top: 20px;
@@ -315,6 +380,48 @@ if (!defined('ABSPATH')) {
     </div>
     
     <div class="surf-settings-section">
+        <h2>💬 Message Management</h2>
+        
+        <div class="surf-message-management-container">
+            <div class="surf-table-header">
+                <h3>Recent Web Chat Messages</h3>
+                <div class="surf-table-controls">
+                    <button class="surf-refresh-btn" id="refresh-messages">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M1 4V10H7M23 20V14H17M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div class="surf-table-wrapper">
+                <table class="surf-message-management-table" id="surf-message-management-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Message</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="surf-messages-tbody">
+                        <tr>
+                            <td colspan="4" class="surf-loading">Loading messages...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="surf-table-pagination" id="surf-messages-pagination" style="display: none;">
+                <button class="surf-pagination-btn" id="prev-message-page" disabled>Previous</button>
+                <span class="surf-page-info" id="message-page-info">Page 1 of 1</span>
+                <button class="surf-pagination-btn" id="next-message-page" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="surf-settings-section">
         <h2>👥 User Submissions</h2>
         
         <div class="surf-user-submissions-table-container">
@@ -478,9 +585,14 @@ jQuery(document).ready(function($) {
     let currentSort = 'date'; // Default sort by date (most recent first)
     let sortDirection = 'desc'; // Default direction
     
-    // Load stats and user submissions on page load
+    // Message management variables
+    let currentMessagePage = 1;
+    const messagePerPage = 10;
+    
+    // Load stats, user submissions, and messages on page load
     loadStats();
     loadUserSubmissions();
+    loadMessages();
     
     // Initialize default sort indicator
     $(`.surf-sortable[data-sort="${currentSort}"]`).addClass(`surf-sort-${sortDirection}`);
@@ -617,6 +729,126 @@ jQuery(document).ready(function($) {
         loadUserSubmissions(1);
     }
     
+    // Message management functions
+    function loadMessages(page = 1) {
+        currentMessagePage = page;
+        
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'GET',
+            data: {
+                action: 'surf_social_get_messages',
+                page: page,
+                per_page: messagePerPage,
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
+            },
+            success: function(response) {
+                if (response.success) {
+                    displayMessages(response.data);
+                } else {
+                    $('#surf-messages-tbody').html('<tr><td colspan="4" class="surf-loading">Error loading messages</td></tr>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Messages AJAX Error:', xhr.responseText);
+                $('#surf-messages-tbody').html('<tr><td colspan="4" class="surf-loading">Error loading messages</td></tr>');
+            }
+        });
+    }
+    
+    function displayMessages(data) {
+        const tbody = $('#surf-messages-tbody');
+        
+        if (data.messages && data.messages.length > 0) {
+            let html = '';
+            data.messages.forEach(function(message) {
+                const messageDate = new Date(message.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                // Truncate long messages
+                const truncatedMessage = message.message.length > 100 
+                    ? message.message.substring(0, 100) + '...' 
+                    : message.message;
+                
+                html += `
+                    <tr data-message-id="${message.id}">
+                        <td><strong>${message.user_name}</strong></td>
+                        <td class="surf-message-content">${truncatedMessage}</td>
+                        <td>${messageDate}</td>
+                        <td class="surf-message-actions">
+                            <button class="surf-delete-btn" onclick="deleteMessage(${message.id})">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.html(html);
+            
+            // Update pagination
+            updateMessagePagination(data.total_pages, data.current_page);
+        } else {
+            tbody.html('<tr><td colspan="4" class="surf-loading">No messages found</td></tr>');
+            $('#surf-messages-pagination').hide();
+        }
+    }
+    
+    function updateMessagePagination(totalPages, currentPage) {
+        const pagination = $('#surf-messages-pagination');
+        const prevBtn = $('#prev-message-page');
+        const nextBtn = $('#next-message-page');
+        const pageInfo = $('#message-page-info');
+        
+        if (totalPages <= 1) {
+            pagination.hide();
+            return;
+        }
+        
+        pagination.show();
+        prevBtn.prop('disabled', currentPage <= 1);
+        nextBtn.prop('disabled', currentPage >= totalPages);
+        pageInfo.text(`Page ${currentPage} of ${totalPages}`);
+    }
+    
+    // Global function for message deletion
+    window.deleteMessage = function(messageId) {
+        if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
+            return;
+        }
+        
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'POST',
+            data: {
+                action: 'surf_social_delete_message',
+                message_id: messageId,
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Remove the message row from the table
+                    $(`tr[data-message-id="${messageId}"]`).fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                    
+                    // Reload messages to update pagination
+                    loadMessages(currentMessagePage);
+                } else {
+                    alert('Error deleting message: ' + (response.data || 'Unknown error'));
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Delete Message Error:', xhr.responseText);
+                alert('Error deleting message. Please try again.');
+            }
+        });
+    };
+    
     // Event handlers
     $('.surf-sortable').on('click', function() {
         const column = $(this).data('sort');
@@ -635,6 +867,21 @@ jQuery(document).ready(function($) {
     
     $('#next-page').on('click', function() {
         loadUserSubmissions(currentPage + 1);
+    });
+    
+    // Message management event handlers
+    $('#refresh-messages').on('click', function() {
+        loadMessages(currentMessagePage);
+    });
+    
+    $('#prev-message-page').on('click', function() {
+        if (currentMessagePage > 1) {
+            loadMessages(currentMessagePage - 1);
+        }
+    });
+    
+    $('#next-message-page').on('click', function() {
+        loadMessages(currentMessagePage + 1);
     });
     
     // Update connection status when settings change
