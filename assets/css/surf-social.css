@@ -204,14 +204,14 @@
 }
 
 .surf-message-avatar {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 10px;
     color: white;
     flex-shrink: 0;
 }
@@ -234,12 +234,12 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    min-height: 60px;
+    min-height: 40px;
     justify-content: center;
 }
 
 .surf-message-name {
-    font-size: 12px;
+    font-size: 10px;
     color: var(--surf-text-muted);
     font-weight: 500;
 }
