@@ -150,7 +150,6 @@
     position: relative;
     z-index: 1000001;
     border-radius: 12px 12px 0 0;
-    transform: translateY(5px);
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     margin-top: 5px;
     overflow: visible;
@@ -559,7 +558,6 @@
         color: var(--surf-primary) !important;
         border-radius: 12px 12px 0 0;
         margin-top: 5px;
-        transform: translateY(5px);
         z-index: 1000001;
         overflow: visible;
     }
