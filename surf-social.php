@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.51
+Version: 1.0.52
 Author: Thomas Fraher
 */
 
@@ -63,8 +63,6 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
         add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
         add_action('wp_ajax_surf_social_close_support_ticket', array($this, 'ajax_close_support_ticket'));
-        add_action('wp_ajax_surf_social_debug_database', array($this, 'ajax_debug_database'));
-        add_action('wp_ajax_surf_social_migrate_database', array($this, 'ajax_migrate_database'));
     }
     
     /**
@@ -1318,7 +1316,7 @@ class Surf_Social {
             $support_table,
             array(
                 'user_id' => $user_id,
-                'user_name' => $wpdb->get_var($wpdb->prepare("SELECT user_name FROM $support_table WHERE user_id = %d LIMIT 1", $user_id)),
+                'user_name' => $wpdb->get_var($wpdb->prepare("SELECT user_name FROM $support_table WHERE user_id = %s LIMIT 1", $user_id)),
                 'admin_id' => $admin_id,
                 'admin_name' => $admin_name,
                 'message' => $message,
@@ -1326,7 +1324,7 @@ class Surf_Social {
                 'status' => 'open',
                 'created_at' => current_time('mysql')
             ),
-            array('%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -1393,137 +1391,6 @@ class Surf_Social {
         }
     }
     
-    /**
-     * AJAX handler for debugging database state
-     */
-    public function ajax_debug_database() {
-        check_ajax_referer('surf_social_stats', 'nonce');
-        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
-        
-        global $wpdb;
-        
-        $debug_info = array();
-        
-        // Check table schemas
-        $tables = array(
-            'surf_social_messages',
-            'surf_social_individual_messages', 
-            'surf_social_support_messages'
-        );
-        
-        foreach ($tables as $table) {
-            $table_name = $wpdb->prefix . $table;
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
-            
-            if ($table_exists) {
-                // Get column info
-                $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name", ARRAY_A);
-                $user_id_column = null;
-                foreach ($columns as $column) {
-                    if ($column['Field'] === 'user_id') {
-                        $user_id_column = $column;
-                        break;
-                    }
-                }
-                
-                // Get sample data
-                $sample_data = $wpdb->get_results(
-                    "SELECT user_id, user_name, message, created_at FROM $table_name ORDER BY created_at DESC LIMIT 5",
-                    ARRAY_A
-                );
-                
-                // Get unique user_ids
-                $unique_users = $wpdb->get_results(
-                    "SELECT user_id, user_name, COUNT(*) as message_count FROM $table_name GROUP BY user_id, user_name ORDER BY message_count DESC",
-                    ARRAY_A
-                );
-                
-                $debug_info[$table] = array(
-                    'exists' => true,
-                    'user_id_column' => $user_id_column,
-                    'sample_data' => $sample_data,
-                    'unique_users' => $unique_users,
-                    'total_messages' => $wpdb->get_var("SELECT COUNT(*) FROM $table_name")
-                );
-            } else {
-                $debug_info[$table] = array('exists' => false);
-            }
-        }
-        
-        wp_send_json_success($debug_info);
-    }
-    
-    /**
-     * AJAX handler for migrating database schema
-     */
-    public function ajax_migrate_database() {
-        check_ajax_referer('surf_social_stats', 'nonce');
-        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
-        
-        global $wpdb;
-        
-        $results = array();
-        $errors = array();
-        
-        // Tables and their user_id columns to migrate
-        $migrations = array(
-            'surf_social_messages' => array('user_id'),
-            'surf_social_individual_messages' => array('sender_id', 'recipient_id'),
-            'surf_social_support_messages' => array('user_id')
-        );
-        
-        foreach ($migrations as $table => $columns) {
-            $table_name = $wpdb->prefix . $table;
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
-            
-            if (!$table_exists) {
-                $results[$table] = 'Table does not exist';
-                continue;
-            }
-            
-            foreach ($columns as $column) {
-                // Check current column type
-                $column_info = $wpdb->get_row($wpdb->prepare(
-                    "SHOW COLUMNS FROM $table_name LIKE %s",
-                    $column
-                ), ARRAY_A);
-                
-                if (!$column_info) {
-                    $errors[] = "Column $column not found in $table_name";
-                    continue;
-                }
-                
-                $current_type = $column_info['Type'];
-                
-                // Only migrate if it's still bigint
-                if (strpos($current_type, 'bigint') !== false) {
-                    $sql = "ALTER TABLE $table_name MODIFY COLUMN $column varchar(100) NOT NULL";
-                    $result = $wpdb->query($sql);
-                    
-                    if ($result === false) {
-                        $errors[] = "Failed to migrate $column in $table_name: " . $wpdb->last_error;
-                    } else {
-                        $results[$table][$column] = "Migrated from $current_type to varchar(100)";
-                    }
-                } else {
-                    $results[$table][$column] = "Already varchar type: $current_type";
-                }
-            }
-        }
-        
-        if (empty($errors)) {
-            wp_send_json_success(array(
-                'message' => 'Database migration completed successfully',
-                'results' => $results
-            ));
-        } else {
-            wp_send_json_error(array(
-                'message' => 'Migration completed with errors',
-                'results' => $results,
-                'errors' => $errors
-            ));
-        }
-    }
     
     
 }
