@@ -972,7 +972,20 @@
         message.className = 'surf-message';
         message.dataset.messageId = msg.id;
         
-        if (msg.user_id == config.currentUser.id) {
+        // Convert both IDs to strings for reliable comparison
+        const messageUserId = String(msg.user_id);
+        const currentUserId = String(config.currentUser.id);
+        
+        // Debug logging to help identify issues
+        console.log('Message comparison:', {
+            messageUserId,
+            currentUserId,
+            isOwn: messageUserId === currentUserId,
+            originalMessageUserId: msg.user_id,
+            originalCurrentUserId: config.currentUser.id
+        });
+        
+        if (messageUserId === currentUserId) {
             message.classList.add('own');
         }
         
