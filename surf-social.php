@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.55
+Version: 1.0.56
 Author: Thomas Fraher
 */
 
@@ -658,6 +658,10 @@ class Surf_Social {
         
         if ($result) {
             $message_id = $wpdb->insert_id;
+            
+            // Broadcast individual message via real-time
+            $this->broadcast_individual_message($sender_id, $sender_name, $recipient_id, $recipient_name, $message);
+            
             return new WP_REST_Response(array(
                 'success' => true,
                 'message_id' => $message_id
@@ -775,6 +779,10 @@ class Surf_Social {
         
         if ($result) {
             $message_id = $wpdb->insert_id;
+            
+            // Broadcast support message via real-time
+            $this->broadcast_support_message($user_id, $user_name, $message, $message_type);
+            
             return new WP_REST_Response(array(
                 'success' => true,
                 'message_id' => $message_id
@@ -1080,7 +1088,8 @@ class Surf_Social {
             'method' => 'POST',
             'headers' => array(
                 'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer ' . $pusher_key . ':' . $signature
+                'X-Pusher-Key' => $pusher_key,
+                'X-Pusher-Signature' => $signature
             ),
             'body' => $body,
             'timeout' => 10
@@ -1524,6 +1533,65 @@ class Surf_Social {
                 'admin_name' => $admin_name,
                 'created_at' => current_time('mysql')
             ));
+        }
+    }
+    
+    /**
+     * Broadcast individual message to specific user
+     */
+    private function broadcast_individual_message($sender_id, $sender_name, $recipient_id, $recipient_name, $message) {
+        $data = array(
+            'user' => array(
+                'id' => $sender_id,
+                'name' => $sender_name,
+                'color' => $this->get_user_color($sender_id)
+            ),
+            'targetUser' => array(
+                'id' => $recipient_id,
+                'name' => $recipient_name
+            ),
+            'message' => $message,
+            'created_at' => current_time('mysql'),
+            'type' => 'individual-chat'
+        );
+        
+        // Try Pusher first
+        if (get_option('surf_social_use_pusher', '1') === '1') {
+            $this->broadcast_via_pusher('individual-message', $data);
+        }
+        
+        // Try WebSocket as fallback
+        $websocket_url = get_option('surf_social_websocket_url');
+        if ($websocket_url) {
+            $this->broadcast_via_websocket('individual-message', $data);
+        }
+    }
+    
+    /**
+     * Broadcast support message
+     */
+    private function broadcast_support_message($user_id, $user_name, $message, $message_type) {
+        $data = array(
+            'user' => array(
+                'id' => $user_id,
+                'name' => $user_name,
+                'color' => $this->get_user_color($user_id)
+            ),
+            'message' => $message,
+            'created_at' => current_time('mysql'),
+            'type' => 'support-chat',
+            'message_type' => $message_type
+        );
+        
+        // Try Pusher first
+        if (get_option('surf_social_use_pusher', '1') === '1') {
+            $this->broadcast_via_pusher('support-message', $data);
+        }
+        
+        // Try WebSocket as fallback
+        $websocket_url = get_option('surf_social_websocket_url');
+        if ($websocket_url) {
+            $this->broadcast_via_websocket('support-message', $data);
         }
     }
     

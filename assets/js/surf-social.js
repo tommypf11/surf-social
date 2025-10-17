@@ -350,6 +350,12 @@
             case 'admin-support-reply':
                 handleAdminSupportReply(data);
                 break;
+            case 'individual-message':
+                handleIndividualMessage(data);
+                break;
+            case 'support-message':
+                handleSupportMessage(data);
+                break;
         }
     }
     
