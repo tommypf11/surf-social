@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.56
+Version: 1.0.57
 Author: Thomas Fraher
 */
 
@@ -117,6 +117,8 @@ class Surf_Social {
                     user_id varchar(100) NOT NULL,
                     user_name varchar(100) NOT NULL,
                     message text NOT NULL,
+                    image_url varchar(500) NULL,
+                    message_type varchar(20) NOT NULL DEFAULT 'text',
                     channel varchar(50) NOT NULL DEFAULT 'web',
                     created_at datetime DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY  (id),
@@ -134,6 +136,8 @@ class Surf_Social {
                     recipient_id varchar(100) NOT NULL,
                     recipient_name varchar(100) NOT NULL,
                     message text NOT NULL,
+                    image_url varchar(500) NULL,
+                    message_type varchar(20) NOT NULL DEFAULT 'text',
                     created_at datetime DEFAULT CURRENT_TIMESTAMP,
                     read_at datetime NULL,
                     PRIMARY KEY  (id),
@@ -151,7 +155,9 @@ class Surf_Social {
                     admin_id bigint(20) NULL,
                     admin_name varchar(100) NULL,
                     message text NOT NULL,
+                    image_url varchar(500) NULL,
                     message_type enum('user', 'admin') DEFAULT 'user',
+                    content_type varchar(20) NOT NULL DEFAULT 'text',
                     status enum('open', 'closed', 'resolved') DEFAULT 'open',
                     created_at datetime DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY  (id),
@@ -444,6 +450,13 @@ class Surf_Social {
             'callback' => array($this, 'register_guest'),
             'permission_callback' => '__return_true'
         ));
+        
+        // Image upload endpoint
+        register_rest_route('surf-social/v1', '/upload/image', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'upload_image'),
+            'permission_callback' => '__return_true'
+        ));
     }
     
     /**
@@ -484,9 +497,15 @@ class Surf_Social {
         $user_name = $request->get_param('user_name');
         $user_id = $request->get_param('user_id');
         $channel = $request->get_param('channel') ?: 'web';
+        $image_url = $request->get_param('image_url');
+        $message_type = $request->get_param('type') ?: 'text';
         
-        if (empty($message) || empty($user_name)) {
-            return new WP_Error('invalid_data', 'Message and user name are required', array('status' => 400));
+        if (empty($message) && empty($image_url)) {
+            return new WP_Error('invalid_data', 'Message or image is required', array('status' => 400));
+        }
+        
+        if (empty($user_name)) {
+            return new WP_Error('invalid_data', 'User name is required', array('status' => 400));
         }
         
         $result = $wpdb->insert(
@@ -495,10 +514,12 @@ class Surf_Social {
                 'user_id' => $user_id,
                 'user_name' => sanitize_text_field($user_name),
                 'message' => sanitize_textarea_field($message),
+                'image_url' => sanitize_url($image_url),
+                'message_type' => sanitize_text_field($message_type),
                 'channel' => sanitize_text_field($channel),
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -638,9 +659,15 @@ class Surf_Social {
         $recipient_id = $request->get_param('recipient_id');
         $recipient_name = $request->get_param('recipient_name');
         $message = $request->get_param('message');
+        $image_url = $request->get_param('image_url');
+        $message_type = $request->get_param('type') ?: 'text';
         
-        if (empty($message) || empty($sender_id) || empty($recipient_id)) {
-            return new WP_Error('invalid_data', 'Message, sender ID, and recipient ID are required', array('status' => 400));
+        if (empty($message) && empty($image_url)) {
+            return new WP_Error('invalid_data', 'Message or image is required', array('status' => 400));
+        }
+        
+        if (empty($sender_id) || empty($recipient_id)) {
+            return new WP_Error('invalid_data', 'Sender ID and recipient ID are required', array('status' => 400));
         }
         
         $result = $wpdb->insert(
@@ -651,9 +678,11 @@ class Surf_Social {
                 'recipient_id' => $recipient_id,
                 'recipient_name' => sanitize_text_field($recipient_name),
                 'message' => sanitize_textarea_field($message),
+                'image_url' => sanitize_url($image_url),
+                'message_type' => sanitize_text_field($message_type),
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -758,9 +787,15 @@ class Surf_Social {
         $message_type = $request->get_param('message_type') ?: 'user';
         $admin_id = $request->get_param('admin_id');
         $admin_name = $request->get_param('admin_name');
+        $image_url = $request->get_param('image_url');
+        $content_type = $request->get_param('type') ?: 'text';
         
-        if (empty($message) || empty($user_id)) {
-            return new WP_Error('invalid_data', 'Message and user ID are required', array('status' => 400));
+        if (empty($message) && empty($image_url)) {
+            return new WP_Error('invalid_data', 'Message or image is required', array('status' => 400));
+        }
+        
+        if (empty($user_id)) {
+            return new WP_Error('invalid_data', 'User ID is required', array('status' => 400));
         }
         
         $result = $wpdb->insert(
@@ -771,10 +806,12 @@ class Surf_Social {
                 'admin_id' => $admin_id,
                 'admin_name' => sanitize_text_field($admin_name),
                 'message' => sanitize_textarea_field($message),
+                'image_url' => sanitize_url($image_url),
                 'message_type' => sanitize_text_field($message_type),
+                'content_type' => sanitize_text_field($content_type),
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%d', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -1592,6 +1629,61 @@ class Surf_Social {
         $websocket_url = get_option('surf_social_websocket_url');
         if ($websocket_url) {
             $this->broadcast_via_websocket('support-message', $data);
+        }
+    }
+    
+    /**
+     * Upload image
+     */
+    public function upload_image($request) {
+        // Check if file was uploaded
+        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+            return new WP_Error('upload_failed', 'No image file uploaded', array('status' => 400));
+        }
+        
+        $file = $_FILES['image'];
+        $user_id = sanitize_text_field($_POST['user_id'] ?? '');
+        $user_name = sanitize_text_field($_POST['user_name'] ?? '');
+        
+        // Validate file type
+        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
+        $file_type = wp_check_filetype($file['name']);
+        
+        if (!in_array($file['type'], $allowed_types)) {
+            return new WP_Error('invalid_type', 'Invalid file type. Only images are allowed.', array('status' => 400));
+        }
+        
+        // Validate file size (5MB limit)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            return new WP_Error('file_too_large', 'File size must be less than 5MB.', array('status' => 400));
+        }
+        
+        // Create upload directory
+        $upload_dir = wp_upload_dir();
+        $surf_social_dir = $upload_dir['basedir'] . '/surf-social';
+        
+        if (!file_exists($surf_social_dir)) {
+            wp_mkdir_p($surf_social_dir);
+        }
+        
+        // Generate unique filename
+        $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = 'surf_' . time() . '_' . wp_generate_password(8, false) . '.' . $file_extension;
+        $file_path = $surf_social_dir . '/' . $filename;
+        
+        // Move uploaded file
+        if (move_uploaded_file($file['tmp_name'], $file_path)) {
+            $file_url = $upload_dir['baseurl'] . '/surf-social/' . $filename;
+            
+            return new WP_REST_Response(array(
+                'success' => true,
+                'data' => array(
+                    'url' => $file_url,
+                    'filename' => $filename
+                )
+            ), 200);
+        } else {
+            return new WP_Error('upload_failed', 'Failed to save uploaded file', array('status' => 500));
         }
     }
     
