@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.40
+Version: 1.0.41
 Author: Thomas Fraher
 */
 
@@ -776,6 +776,8 @@ class Surf_Social {
         $guests_table = $wpdb->prefix . 'surf_social_guests';
         $page = intval($_GET['page']) ?: 1;
         $per_page = intval($_GET['per_page']) ?: 10;
+        $sort = sanitize_text_field($_GET['sort']) ?: 'created_at';
+        $direction = sanitize_text_field($_GET['direction']) ?: 'desc';
         $offset = ($page - 1) * $per_page;
         
         // Check if table exists, if not return empty results
@@ -794,12 +796,32 @@ class Surf_Social {
         $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $guests_table");
         $total_pages = ceil($total_count / $per_page);
         
-        // Get submissions with pagination, sorted by most recent first
+        // Validate sort column and direction
+        $allowed_sorts = array('name', 'email', 'created_at');
+        $allowed_directions = array('asc', 'desc');
+        
+        if (!in_array($sort, $allowed_sorts)) {
+            $sort = 'created_at';
+        }
+        if (!in_array($direction, $allowed_directions)) {
+            $direction = 'desc';
+        }
+        
+        // Map frontend sort names to database column names
+        $sort_mapping = array(
+            'name' => 'name',
+            'email' => 'email',
+            'date' => 'created_at'
+        );
+        
+        $db_sort_column = isset($sort_mapping[$sort]) ? $sort_mapping[$sort] : 'created_at';
+        
+        // Get submissions with pagination and sorting
         $submissions = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT name, email, created_at, updated_at 
                  FROM $guests_table 
-                 ORDER BY created_at DESC 
+                 ORDER BY $db_sort_column $direction 
                  LIMIT %d OFFSET %d",
                 $per_page,
                 $offset

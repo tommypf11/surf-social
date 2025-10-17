@@ -25,10 +25,11 @@ if (!defined('ABSPATH')) {
 }
 
 .surf-stat-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: white;
+    color: #1d2327;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 1px;
+    border: 1px solid #000000;
     text-align: center;
 }
 
@@ -176,6 +177,34 @@ if (!defined('ABSPATH')) {
     white-space: nowrap;
 }
 
+.surf-sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background-color 0.2s;
+}
+
+.surf-sortable:hover {
+    background: #e9ecef;
+}
+
+.surf-sort-indicator {
+    margin-left: 8px;
+    font-size: 12px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.surf-sortable.surf-sort-asc .surf-sort-indicator::after {
+    content: " ↑";
+    opacity: 1;
+}
+
+.surf-sortable.surf-sort-desc .surf-sort-indicator::after {
+    content: " ↓";
+    opacity: 1;
+}
+
 .surf-user-submissions-table td {
     padding: 12px 15px;
     border-bottom: 1px solid #f0f0f1;
@@ -290,7 +319,6 @@ if (!defined('ABSPATH')) {
         
         <div class="surf-user-submissions-table-container">
             <div class="surf-table-header">
-                <h3>Users who have entered their information</h3>
                 <div class="surf-table-controls">
                     <button class="surf-refresh-btn" id="refresh-submissions">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -305,15 +333,23 @@ if (!defined('ABSPATH')) {
                 <table class="surf-user-submissions-table" id="surf-user-submissions-table">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Date Entered</th>
-                            <th>Last Updated</th>
+                            <th class="surf-sortable" data-sort="name">
+                                Name
+                                <span class="surf-sort-indicator">↕</span>
+                            </th>
+                            <th class="surf-sortable" data-sort="email">
+                                Email
+                                <span class="surf-sort-indicator">↕</span>
+                            </th>
+                            <th class="surf-sortable" data-sort="date">
+                                Date Entered
+                                <span class="surf-sort-indicator">↕</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="surf-submissions-tbody">
                         <tr>
-                            <td colspan="4" class="surf-loading">Loading user submissions...</td>
+                            <td colspan="3" class="surf-loading">Loading user submissions...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -439,10 +475,15 @@ if (!defined('ABSPATH')) {
 jQuery(document).ready(function($) {
     let currentPage = 1;
     const perPage = 10;
+    let currentSort = 'date'; // Default sort by date (most recent first)
+    let sortDirection = 'desc'; // Default direction
     
     // Load stats and user submissions on page load
     loadStats();
     loadUserSubmissions();
+    
+    // Initialize default sort indicator
+    $(`.surf-sortable[data-sort="${currentSort}"]`).addClass(`surf-sort-${sortDirection}`);
     
     function loadStats() {
         $.ajax({
@@ -490,18 +531,20 @@ jQuery(document).ready(function($) {
                 action: 'surf_social_get_user_submissions',
                 page: page,
                 per_page: perPage,
+                sort: currentSort,
+                direction: sortDirection,
                 nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
             },
             success: function(response) {
                 if (response.success) {
                     displayUserSubmissions(response.data);
                 } else {
-                    $('#surf-submissions-tbody').html('<tr><td colspan="4" class="surf-loading">Error loading user submissions</td></tr>');
+                    $('#surf-submissions-tbody').html('<tr><td colspan="3" class="surf-loading">Error loading user submissions</td></tr>');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('User Submissions AJAX Error:', xhr.responseText);
-                $('#surf-submissions-tbody').html('<tr><td colspan="4" class="surf-loading">Error loading user submissions</td></tr>');
+                $('#surf-submissions-tbody').html('<tr><td colspan="3" class="surf-loading">Error loading user submissions</td></tr>');
             }
         });
     }
@@ -520,22 +563,11 @@ jQuery(document).ready(function($) {
                     minute: '2-digit'
                 });
                 
-                const updatedDate = submission.updated_at && submission.updated_at !== submission.created_at 
-                    ? new Date(submission.updated_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })
-                    : '-';
-                
                 html += `
                     <tr>
                         <td><strong>${submission.name}</strong></td>
                         <td>${submission.email}</td>
                         <td>${createdDate}</td>
-                        <td>${updatedDate}</td>
                     </tr>
                 `;
             });
@@ -544,7 +576,7 @@ jQuery(document).ready(function($) {
             // Update pagination
             updatePagination(data.total_pages, data.current_page);
         } else {
-            tbody.html('<tr><td colspan="4" class="surf-loading">No user submissions found</td></tr>');
+            tbody.html('<tr><td colspan="3" class="surf-loading">No user submissions found</td></tr>');
             $('#surf-submissions-pagination').hide();
         }
     }
@@ -566,7 +598,31 @@ jQuery(document).ready(function($) {
         pageInfo.text(`Page ${currentPage} of ${totalPages}`);
     }
     
+    // Sorting functionality
+    function handleSort(column) {
+        if (currentSort === column) {
+            // Toggle direction if same column
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            // Set new column and default direction
+            currentSort = column;
+            sortDirection = 'asc';
+        }
+        
+        // Update visual indicators
+        $('.surf-sortable').removeClass('surf-sort-asc surf-sort-desc');
+        $(`.surf-sortable[data-sort="${column}"]`).addClass(`surf-sort-${sortDirection}`);
+        
+        // Reload data with new sorting
+        loadUserSubmissions(1);
+    }
+    
     // Event handlers
+    $('.surf-sortable').on('click', function() {
+        const column = $(this).data('sort');
+        handleSort(column);
+    });
+    
     $('#refresh-submissions').on('click', function() {
         loadUserSubmissions(currentPage);
     });
