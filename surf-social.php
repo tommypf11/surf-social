@@ -1,15 +1,13 @@
 <?php
-/**
- * Plugin Name: Surf Social
- * Plugin URI: https://surfsocial.com
- * Description: Real-time presence and global chat for WordPress. See who's on your site and chat with them.
- * Version: 1.0.1
- * Author: Surf Social
- * Author URI: https://surfsocial.com
- * License: GPL v2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: surf-social
- */
+/*
+Plugin Name: Surf Social
+Plugin URI: https://github.com/tommypf11/surf-social
+GitHub Plugin URI: https://github.com/tommypf11/surf-social
+Description: Your plugin description
+Version: 1.0.2
+Author: Thomas Fraher
+*/
+
 
 // Exit if accessed directly
 if (!defined('ABSPATH')) {
