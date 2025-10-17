@@ -157,26 +157,25 @@
 #surf-social-widget .surf-chat-tab.active::after {
     content: '';
     position: absolute;
-    bottom: -15px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 30px;
-    height: 15px;
+    bottom: -12px;
+    left: 0;
+    right: 0;
+    height: 12px;
     background: white;
-    border-radius: 0 0 15px 15px;
+    border-radius: 0 0 12px 12px;
     z-index: 11;
 }
 
 #surf-social-widget .surf-chat-tab.active::before {
     content: '';
     position: absolute;
-    bottom: -15px;
+    bottom: -12px;
     left: 0;
     right: 0;
-    height: 15px;
+    height: 12px;
     background: white;
     z-index: 10;
-    border-radius: 0;
+    border-radius: 0 0 12px 12px;
 }
 
 /* Chat Messages */
@@ -584,15 +583,17 @@
     }
     
     #surf-social-widget .surf-chat-tab.active::after {
-        bottom: -15px;
-        width: 30px;
-        height: 15px;
-        border-radius: 0 0 15px 15px;
+        bottom: -12px;
+        left: 0;
+        right: 0;
+        height: 12px;
+        border-radius: 0 0 12px 12px;
     }
     
     #surf-social-widget .surf-chat-tab.active::before {
-        bottom: -15px;
-        height: 15px;
+        bottom: -12px;
+        height: 12px;
+        border-radius: 0 0 12px 12px;
     }
     
     .surf-chat-header {
