@@ -503,7 +503,7 @@
     }
     
     /**
-     * Update avatar dock - shows the most recent user or user count
+     * Update avatar dock - shows all active users with expandable layout
      */
     function updateAvatarDock() {
         const existingChips = avatarDock.querySelectorAll('.surf-avatar-chip:not(.surf-avatar-more)');
@@ -520,16 +520,23 @@
         // Show avatar dock
         avatarDock.style.display = 'flex';
         
-        // Show the most recent user (last in the array) or first user
-        const displayUser = users[users.length - 1] || users[0];
+        // Sort users by join time (most recent first for left-to-right display)
+        const sortedUsers = users.sort((a, b) => b.lastSeen - a.lastSeen);
         
-        if (displayUser) {
+        // Add avatar chips for all users (limit to 5 visible avatars)
+        const maxVisible = 5;
+        const visibleUsers = sortedUsers.slice(0, maxVisible);
+        const remainingCount = Math.max(0, sortedUsers.length - maxVisible);
+        
+        // Add user avatars (newest users on the left)
+        visibleUsers.forEach((cursor, index) => {
             const chip = document.createElement('div');
             chip.className = 'surf-avatar-chip';
-            chip.style.backgroundColor = displayUser.user.color;
-            chip.textContent = displayUser.user.name.charAt(0).toUpperCase();
-            chip.title = `${displayUser.user.name} (${users.length} online)`;
-            chip.dataset.userId = displayUser.user.id;
+            chip.style.backgroundColor = cursor.user.color;
+            chip.style.zIndex = maxVisible - index; // Stack with newest on top
+            chip.textContent = cursor.user.name.charAt(0).toUpperCase();
+            chip.title = `${cursor.user.name} (${users.length} online)`;
+            chip.dataset.userId = cursor.user.id;
             
             // Add unread indicator if there are unread messages
             if (unreadCount > 0) {
@@ -539,13 +546,18 @@
             }
             
             avatarDock.appendChild(chip);
-        }
+        });
         
-        // Update the +N chip to show total count
+        // Update the +N chip to show remaining count
         const moreChip = avatarDock.querySelector('.surf-avatar-more');
         if (moreChip) {
-            moreChip.textContent = users.length > 1 ? `+${users.length}` : '';
-            moreChip.style.display = users.length > 1 ? 'flex' : 'none';
+            if (remainingCount > 0) {
+                moreChip.textContent = `+${remainingCount}`;
+                moreChip.style.display = 'flex';
+                moreChip.style.zIndex = 0; // Behind user avatars
+            } else {
+                moreChip.style.display = 'none';
+            }
         }
     }
     

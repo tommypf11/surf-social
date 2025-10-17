@@ -399,20 +399,22 @@
 
 /* Avatar Dock */
 .surf-avatar-dock {
-    width: 45px;
+    min-width: 45px;
     height: 45px;
     display: none;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: var(--surf-backdrop-blur);
-    border-radius: 50%;
+    border-radius: 22.5px;
     box-shadow: var(--surf-shadow);
     border: 1px solid rgba(0, 0, 0, 0.1);
-    transition: var(--surf-transition);
-    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: visible;
     flex-shrink: 0;
     position: relative;
+    padding: 0 8px;
+    gap: -5px;
 }
 
 .surf-avatar-dock.hidden {
@@ -432,18 +434,17 @@
     color: white;
     background-color: var(--surf-primary);
     cursor: pointer;
-    transition: all 0.2s;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border: 2px solid white;
     z-index: 1;
+    flex-shrink: 0;
+    margin-left: -8px;
 }
 
 .surf-avatar-chip:hover {
-    transform: translate(-50%, -50%) scale(1.1);
+    transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     z-index: 2;
 }
@@ -458,7 +459,7 @@
 
 .surf-avatar-chip.surf-avatar-more:hover {
     background: var(--surf-accent);
-    transform: translate(-50%, -50%) scale(1.05);
+    transform: scale(1.05);
 }
 
 /* Removed expand button styles - no longer needed */
@@ -526,7 +527,7 @@
     font-size: 11px;
     color: #95A5A6;
     z-index: 999995;
-    margin-bottom: 100px;
+    margin-bottom: 0px;
 }
 
 .surf-branding strong {
@@ -552,14 +553,17 @@
     }
     
     .surf-avatar-dock {
-        width: 35px;
+        min-width: 35px;
         height: 35px;
+        border-radius: 17.5px;
+        padding: 0 6px;
     }
     
     .surf-avatar-chip {
         width: 24px;
         height: 24px;
         font-size: 10px;
+        margin-left: -6px;
     }
     
     /* Removed expand button responsive styles */
