@@ -72,7 +72,14 @@
         
         // Tab switching
         chatTabs.forEach(tab => {
-            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const tabName = tab.dataset.tab;
+                if (tabName) {
+                    switchTab(tabName);
+                }
+            });
         });
         
         // Avatar dock is now auto-expanded, no expand button needed
@@ -590,14 +597,28 @@
      * Switch chat tab
      */
     function switchTab(tabName) {
+        // Validate tab name
+        if (!tabName || !['web', 'friend', 'support'].includes(tabName)) {
+            return;
+        }
+        
         currentTab = tabName;
+        
+        // Update tab active states
         chatTabs.forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.tab === tabName);
+            if (tab.dataset.tab === tabName) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
         });
         
+        // Update title if it exists
         const title = document.querySelector('.surf-chat-title');
-        title.textContent = tabName === 'web' ? 'Web Chat' : 
-                          tabName === 'friend' ? 'Friend Chat' : 'Support';
+        if (title) {
+            title.textContent = tabName === 'web' ? 'Web Chat' : 
+                              tabName === 'friend' ? 'Friend Chat' : 'Support';
+        }
         
         // Clear current chat user when switching tabs
         currentChatUser = null;
