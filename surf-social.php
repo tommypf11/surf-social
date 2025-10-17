@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.52
+Version: 1.0.53
 Author: Thomas Fraher
 */
 
@@ -966,9 +966,61 @@ class Surf_Social {
      * Broadcast via Pusher
      */
     private function broadcast_via_pusher($event, $data) {
-        // For now, we'll rely on the frontend to handle real-time updates
-        // In a full implementation, you'd use the Pusher PHP SDK here
-        // The frontend will handle the deletion through the admin interface
+        $pusher_key = get_option('surf_social_pusher_key');
+        $pusher_secret = get_option('surf_social_pusher_secret');
+        $pusher_cluster = get_option('surf_social_pusher_cluster', 'us3');
+        
+        if (!$pusher_key || !$pusher_secret) {
+            error_log('Pusher not configured properly');
+            return;
+        }
+        
+        $channel = 'surf-social-channel';
+        
+        // Create the request body
+        $body = json_encode(array(
+            'name' => $event,
+            'channel' => $channel,
+            'data' => json_encode($data)
+        ));
+        
+        // Create MD5 hash of the body
+        $body_md5 = md5($body);
+        
+        // Create the auth string for signature
+        $auth_string = "POST\n/apps/{$pusher_key}/events\n{$body_md5}";
+        
+        // Create HMAC signature
+        $signature = hash_hmac('sha256', $auth_string, $pusher_secret);
+        
+        // Pusher REST API URL
+        $url = "https://api-{$pusher_cluster}.pusherapp.com/apps/{$pusher_key}/events";
+        
+        // Prepare the request
+        $args = array(
+            'method' => 'POST',
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $pusher_key . ':' . $signature
+            ),
+            'body' => $body,
+            'timeout' => 10
+        );
+        
+        // Send the request
+        $response = wp_remote_post($url, $args);
+        
+        if (is_wp_error($response)) {
+            error_log('Pusher broadcast error: ' . $response->get_error_message());
+        } else {
+            $response_code = wp_remote_retrieve_response_code($response);
+            if ($response_code !== 200) {
+                $response_body = wp_remote_retrieve_body($response);
+                error_log('Pusher broadcast failed: ' . $response_code . ' - ' . $response_body);
+            } else {
+                error_log('Pusher broadcast successful for event: ' . $event);
+            }
+        }
     }
     
     /**
