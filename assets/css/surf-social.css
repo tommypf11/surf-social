@@ -351,39 +351,66 @@
     background: white;
 }
 
-.surf-join-button {
-    background: var(--surf-primary);
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    margin-top: 4px;
+/* Join Button with high specificity to override WordPress theme styles */
+#surf-social-widget .surf-join-button,
+.surf-guest-registration .surf-join-button,
+#surf-join-button {
+    background: var(--surf-primary) !important;
+    color: white !important;
+    border: none !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    transition: all 0.2s ease !important;
+    font-family: inherit !important;
+    margin-top: 4px !important;
+    text-decoration: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
-.surf-join-button:hover {
-    background: var(--surf-accent);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+#surf-social-widget .surf-join-button:hover,
+.surf-guest-registration .surf-join-button:hover,
+#surf-join-button:hover {
+    background: var(--surf-accent) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    text-decoration: none !important;
 }
 
-.surf-join-button:active {
-    transform: translateY(0);
+#surf-social-widget .surf-join-button:active,
+.surf-guest-registration .surf-join-button:active,
+#surf-join-button:active {
+    transform: translateY(0) !important;
+    background: var(--surf-accent) !important;
+    color: white !important;
 }
 
-.surf-join-button:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+#surf-social-widget .surf-join-button:focus,
+.surf-guest-registration .surf-join-button:focus,
+#surf-join-button:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1) !important;
+    background: var(--surf-primary) !important;
+    color: white !important;
+}
+
+#surf-social-widget .surf-join-button:disabled,
+.surf-guest-registration .surf-join-button:disabled,
+#surf-join-button:disabled {
+    background: #ccc !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+    opacity: 0.6 !important;
 }
 
 /* Normal Chat Input (after registration) */

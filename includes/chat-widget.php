@@ -25,10 +25,10 @@ if (!defined('ABSPATH')) {
             <!-- Guest Registration Form (shown initially for guests) -->
             <div class="surf-guest-registration" id="surf-guest-registration">
                 <div class="surf-input-row">
-                    <input type="text" class="surf-name-input" placeholder="Your name" maxlength="20" id="surf-name-input">
+                    <input type="text" class="surf-name-input" placeholder="Name" maxlength="20" id="surf-name-input">
                 </div>
                 <div class="surf-input-row">
-                    <input type="email" class="surf-email-input" placeholder="Email (private - not visible to others)" maxlength="50" id="surf-email-input">
+                    <input type="email" class="surf-email-input" placeholder="Email (Hidden)" maxlength="50" id="surf-email-input">
                 </div>
                 <button class="surf-join-button" id="surf-join-button">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

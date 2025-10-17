@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.34
+Version: 1.0.35
 Author: Thomas Fraher
 */
 
@@ -49,6 +49,7 @@ class Surf_Social {
     private function init_hooks() {
         add_action('init', array($this, 'init'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'), 20);
+        add_action('wp_footer', array($this, 'enqueue_footer_styles'), 1); // Load styles in footer with high priority
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('wp_footer', array($this, 'render_chat_widget'));
@@ -72,12 +73,13 @@ class Surf_Social {
             return;
         }
         
-        // Enqueue styles
+        // Enqueue styles with high priority to override theme styles
         wp_enqueue_style(
             'surf-social-style',
             SURF_SOCIAL_PLUGIN_URL . 'assets/css/surf-social.css',
-            array(),
-            SURF_SOCIAL_VERSION
+            array(), // No dependencies - load after theme
+            SURF_SOCIAL_VERSION,
+            'all'
         );
         
         // Enqueue scripts
@@ -148,6 +150,25 @@ class Surf_Social {
             'apiUrl' => rest_url('surf-social/v1/'),
             'nonce' => wp_create_nonce('wp_rest')
         ));
+    }
+    
+    /**
+     * Enqueue footer styles to ensure they load after theme styles
+     */
+    public function enqueue_footer_styles() {
+        // Only load on frontend
+        if (is_admin()) {
+            return;
+        }
+        
+        // Re-enqueue styles in footer with higher priority
+        wp_enqueue_style(
+            'surf-social-footer-style',
+            SURF_SOCIAL_PLUGIN_URL . 'assets/css/surf-social.css',
+            array(), // No dependencies
+            SURF_SOCIAL_VERSION . '.' . time(), // Force cache refresh
+            'all'
+        );
     }
     
     /**
