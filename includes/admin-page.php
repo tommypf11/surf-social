@@ -107,6 +107,145 @@ if (!defined('ABSPATH')) {
     border-radius: 4px;
     font-family: monospace;
 }
+
+/* User Submissions Table Styles */
+.surf-user-submissions-table-container {
+    margin-top: 20px;
+}
+
+.surf-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e1e5e9;
+}
+
+.surf-table-header h3 {
+    margin: 0;
+    color: #1d2327;
+    font-size: 18px;
+}
+
+.surf-table-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.surf-refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #007cba;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.surf-refresh-btn:hover {
+    background: #005a87;
+}
+
+.surf-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    background: white;
+}
+
+.surf-user-submissions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.surf-user-submissions-table th {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #1d2327;
+    border-bottom: 2px solid #e1e5e9;
+    white-space: nowrap;
+}
+
+.surf-user-submissions-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f1;
+    vertical-align: top;
+}
+
+.surf-user-submissions-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.surf-user-submissions-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.surf-loading {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 20px !important;
+}
+
+.surf-table-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 15px;
+    padding: 10px 0;
+}
+
+.surf-pagination-btn {
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border: 1px solid #e1e5e9;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.surf-pagination-btn:hover:not(:disabled) {
+    background: #e9ecef;
+    border-color: #007cba;
+}
+
+.surf-pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.surf-page-info {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .surf-table-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .surf-user-submissions-table th,
+    .surf-user-submissions-table td {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+}
 </style>
 
 <div class="wrap">
@@ -132,12 +271,58 @@ if (!defined('ABSPATH')) {
                 <h3>Support Tickets</h3>
                 <span class="surf-stat-number" id="support-tickets">-</span>
             </div>
+            <div class="surf-stat-card">
+                <h3>User Submissions</h3>
+                <span class="surf-stat-number" id="user-submissions">-</span>
+            </div>
         </div>
         
         <div class="surf-connection-status">
             <h3>Connection Status</h3>
             <div class="surf-status-indicator" id="connection-status">
                 Checking...
+            </div>
+        </div>
+    </div>
+    
+    <div class="surf-settings-section">
+        <h2>👥 User Submissions</h2>
+        
+        <div class="surf-user-submissions-table-container">
+            <div class="surf-table-header">
+                <h3>Users who have entered their information</h3>
+                <div class="surf-table-controls">
+                    <button class="surf-refresh-btn" id="refresh-submissions">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M1 4V10H7M23 20V14H17M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div class="surf-table-wrapper">
+                <table class="surf-user-submissions-table" id="surf-user-submissions-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Date Entered</th>
+                            <th>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="surf-submissions-tbody">
+                        <tr>
+                            <td colspan="4" class="surf-loading">Loading user submissions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="surf-table-pagination" id="surf-submissions-pagination" style="display: none;">
+                <button class="surf-pagination-btn" id="prev-page" disabled>Previous</button>
+                <span class="surf-page-info" id="page-info">Page 1 of 1</span>
+                <button class="surf-pagination-btn" id="next-page" disabled>Next</button>
             </div>
         </div>
     </div>
@@ -252,8 +437,12 @@ if (!defined('ABSPATH')) {
 
 <script>
 jQuery(document).ready(function($) {
-    // Load stats on page load
+    let currentPage = 1;
+    const perPage = 10;
+    
+    // Load stats and user submissions on page load
     loadStats();
+    loadUserSubmissions();
     
     function loadStats() {
         $.ajax({
@@ -270,6 +459,7 @@ jQuery(document).ready(function($) {
                     $('#messages-today').text(stats.messages_today || 0);
                     $('#active-users').text(stats.unique_users || 0);
                     $('#support-tickets').text(stats.active_support_tickets || 0);
+                    $('#user-submissions').text(stats.user_submissions || 0);
                     
                     // Update connection status
                     const pusherKey = $('#surf_social_pusher_key').val();
@@ -288,6 +478,106 @@ jQuery(document).ready(function($) {
             }
         });
     }
+    
+    function loadUserSubmissions(page = 1) {
+        currentPage = page;
+        
+        $.ajax({
+            url: ajaxurl,
+            type: 'GET',
+            data: {
+                action: 'surf_social_get_user_submissions',
+                page: page,
+                per_page: perPage,
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
+            },
+            success: function(response) {
+                if (response.success) {
+                    displayUserSubmissions(response.data);
+                } else {
+                    $('#surf-submissions-tbody').html('<tr><td colspan="4" class="surf-loading">Error loading user submissions</td></tr>');
+                }
+            },
+            error: function() {
+                $('#surf-submissions-tbody').html('<tr><td colspan="4" class="surf-loading">Error loading user submissions</td></tr>');
+            }
+        });
+    }
+    
+    function displayUserSubmissions(data) {
+        const tbody = $('#surf-submissions-tbody');
+        
+        if (data.submissions && data.submissions.length > 0) {
+            let html = '';
+            data.submissions.forEach(function(submission) {
+                const createdDate = new Date(submission.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const updatedDate = submission.updated_at && submission.updated_at !== submission.created_at 
+                    ? new Date(submission.updated_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                    : '-';
+                
+                html += `
+                    <tr>
+                        <td><strong>${submission.name}</strong></td>
+                        <td>${submission.email}</td>
+                        <td>${createdDate}</td>
+                        <td>${updatedDate}</td>
+                    </tr>
+                `;
+            });
+            tbody.html(html);
+            
+            // Update pagination
+            updatePagination(data.total_pages, data.current_page);
+        } else {
+            tbody.html('<tr><td colspan="4" class="surf-loading">No user submissions found</td></tr>');
+            $('#surf-submissions-pagination').hide();
+        }
+    }
+    
+    function updatePagination(totalPages, currentPage) {
+        const pagination = $('#surf-submissions-pagination');
+        const prevBtn = $('#prev-page');
+        const nextBtn = $('#next-page');
+        const pageInfo = $('#page-info');
+        
+        if (totalPages <= 1) {
+            pagination.hide();
+            return;
+        }
+        
+        pagination.show();
+        prevBtn.prop('disabled', currentPage <= 1);
+        nextBtn.prop('disabled', currentPage >= totalPages);
+        pageInfo.text(`Page ${currentPage} of ${totalPages}`);
+    }
+    
+    // Event handlers
+    $('#refresh-submissions').on('click', function() {
+        loadUserSubmissions(currentPage);
+    });
+    
+    $('#prev-page').on('click', function() {
+        if (currentPage > 1) {
+            loadUserSubmissions(currentPage - 1);
+        }
+    });
+    
+    $('#next-page').on('click', function() {
+        loadUserSubmissions(currentPage + 1);
+    });
     
     // Update connection status when settings change
     $('#surf_social_pusher_key, #surf_social_websocket_url, #surf_social_use_pusher').on('change', function() {
@@ -310,6 +600,7 @@ add_action('wp_ajax_surf_social_get_stats', function() {
     $web_messages_table = $wpdb->prefix . 'surf_social_messages';
     $individual_messages_table = $wpdb->prefix . 'surf_social_individual_messages';
     $support_messages_table = $wpdb->prefix . 'surf_social_support_messages';
+    $guests_table = $wpdb->prefix . 'surf_social_guests';
     
     $stats = array(
         'total_web_messages' => $wpdb->get_var("SELECT COUNT(*) FROM $web_messages_table"),
@@ -317,9 +608,51 @@ add_action('wp_ajax_surf_social_get_stats', function() {
         'total_support_messages' => $wpdb->get_var("SELECT COUNT(*) FROM $support_messages_table"),
         'messages_today' => $wpdb->get_var("SELECT COUNT(*) FROM $web_messages_table WHERE DATE(created_at) = CURDATE()"),
         'unique_users' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $web_messages_table"),
-        'active_support_tickets' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'")
+        'active_support_tickets' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'"),
+        'user_submissions' => $wpdb->get_var("SELECT COUNT(*) FROM $guests_table")
     );
     
     wp_send_json_success($stats);
+});
+
+// Add AJAX handler for user submissions
+add_action('wp_ajax_surf_social_get_user_submissions', function() {
+    check_ajax_referer('surf_social_stats', 'nonce');
+    
+    if (!current_user_can('manage_options')) {
+        wp_die('Unauthorized');
+    }
+    
+    global $wpdb;
+    
+    $guests_table = $wpdb->prefix . 'surf_social_guests';
+    $page = intval($_GET['page']) ?: 1;
+    $per_page = intval($_GET['per_page']) ?: 10;
+    $offset = ($page - 1) * $per_page;
+    
+    // Get total count
+    $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $guests_table");
+    $total_pages = ceil($total_count / $per_page);
+    
+    // Get submissions with pagination, sorted by most recent first
+    $submissions = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT name, email, created_at, updated_at 
+             FROM $guests_table 
+             ORDER BY created_at DESC 
+             LIMIT %d OFFSET %d",
+            $per_page,
+            $offset
+        ),
+        ARRAY_A
+    );
+    
+    wp_send_json_success(array(
+        'submissions' => $submissions,
+        'total_count' => $total_count,
+        'total_pages' => $total_pages,
+        'current_page' => $page,
+        'per_page' => $per_page
+    ));
 });
 ?>

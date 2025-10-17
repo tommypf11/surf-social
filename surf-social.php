@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.38
+Version: 1.0.39
 Author: Thomas Fraher
 */
 
@@ -696,6 +696,7 @@ class Surf_Social {
         $web_messages_table = $wpdb->prefix . 'surf_social_messages';
         $individual_messages_table = $wpdb->prefix . 'surf_social_individual_messages';
         $support_messages_table = $wpdb->prefix . 'surf_social_support_messages';
+        $guests_table = $wpdb->prefix . 'surf_social_guests';
         
         $stats = array(
             'total_web_messages' => $wpdb->get_var("SELECT COUNT(*) FROM $web_messages_table"),
@@ -703,7 +704,8 @@ class Surf_Social {
             'total_support_messages' => $wpdb->get_var("SELECT COUNT(*) FROM $support_messages_table"),
             'messages_today' => $wpdb->get_var("SELECT COUNT(*) FROM $web_messages_table WHERE DATE(created_at) = CURDATE()"),
             'unique_users' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $web_messages_table"),
-            'active_support_tickets' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'")
+            'active_support_tickets' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'"),
+            'user_submissions' => $wpdb->get_var("SELECT COUNT(*) FROM $guests_table")
         );
         
         return new WP_REST_Response($stats, 200);
