@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.47
+Version: 1.0.48
 Author: Thomas Fraher
 */
 
@@ -419,7 +419,7 @@ class Surf_Social {
                 'channel' => sanitize_text_field($channel),
                 'created_at' => current_time('mysql')
             ),
-            array('%d', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -574,7 +574,7 @@ class Surf_Social {
                 'message' => sanitize_textarea_field($message),
                 'created_at' => current_time('mysql')
             ),
-            array('%d', '%s', '%d', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -691,7 +691,7 @@ class Surf_Social {
                 'message_type' => sanitize_text_field($message_type),
                 'created_at' => current_time('mysql')
             ),
-            array('%d', '%s', '%d', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%d', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
