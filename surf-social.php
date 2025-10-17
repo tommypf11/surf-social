@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.46
+Version: 1.0.47
 Author: Thomas Fraher
 */
 
@@ -63,7 +63,6 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
         add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
         add_action('wp_ajax_surf_social_close_support_ticket', array($this, 'ajax_close_support_ticket'));
-        add_action('wp_ajax_surf_social_debug_support', array($this, 'ajax_debug_support'));
     }
     
     /**
@@ -1251,10 +1250,7 @@ class Surf_Social {
         $support_table = $wpdb->prefix . 'surf_social_support_messages';
         $user_id = $_GET['user_id'];
         
-        error_log('Support conversation request - user_id: ' . $user_id . ' (type: ' . gettype($user_id) . ')');
-        
-        if (empty($user_id)) {
-            error_log('Support conversation error: User ID is empty');
+        if (empty($user_id) && $user_id !== '0' && $user_id !== 0) {
             wp_send_json_error('User ID required');
         }
         
@@ -1283,7 +1279,6 @@ class Surf_Social {
             ARRAY_A
         );
         
-        error_log('Support conversation query results - messages count: ' . count($messages) . ', user_info: ' . print_r($user_info, true));
         
         wp_send_json_success(array('messages' => $messages, 'user_info' => $user_info));
     }
@@ -1302,7 +1297,7 @@ class Surf_Social {
         $admin_id = get_current_user_id();
         $admin_name = wp_get_current_user()->display_name;
         
-        if (empty($user_id) || empty($message)) {
+        if ((empty($user_id) && $user_id !== '0' && $user_id !== 0) || empty($message)) {
             wp_send_json_error('User ID and message required');
         }
         
@@ -1340,7 +1335,7 @@ class Surf_Social {
         global $wpdb;
         $support_table = $wpdb->prefix . 'surf_social_support_messages';
         $user_id = $_POST['user_id'];
-        if (empty($user_id)) {
+        if (empty($user_id) && $user_id !== '0' && $user_id !== 0) {
             wp_send_json_error('User ID required');
         }
         
@@ -1385,33 +1380,6 @@ class Surf_Social {
         }
     }
     
-    /**
-     * Debug support data
-     */
-    public function ajax_debug_support() {
-        check_ajax_referer('surf_social_stats', 'nonce');
-        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
-        
-        global $wpdb;
-        $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$support_table'");
-        $all_messages = $wpdb->get_results("SELECT * FROM $support_table ORDER BY created_at DESC LIMIT 10", ARRAY_A);
-        $ticket_groups = $wpdb->get_results(
-            "SELECT user_id, user_name, COUNT(*) as message_count, MAX(created_at) as last_message 
-             FROM $support_table 
-             GROUP BY user_id, user_name 
-             ORDER BY last_message DESC",
-            ARRAY_A
-        );
-        
-        wp_send_json_success(array(
-            'table_exists' => $table_exists,
-            'all_messages' => $all_messages,
-            'ticket_groups' => $ticket_groups,
-            'table_name' => $support_table
-        ));
-    }
     
 }
 
