@@ -326,6 +326,313 @@ if (!defined('ABSPATH')) {
     font-weight: 500;
 }
 
+/* Support Management Styles */
+.surf-support-interface {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 20px;
+    min-height: 600px;
+    margin-top: 20px;
+}
+
+.surf-tickets-panel {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.surf-tickets-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e1e5e9;
+}
+
+.surf-tickets-header h3 {
+    margin: 0;
+    color: #1d2327;
+    font-size: 16px;
+}
+
+.surf-tickets-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.surf-tickets-controls select {
+    padding: 6px 10px;
+    border: 1px solid #e1e5e9;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+}
+
+.surf-tickets-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+.surf-ticket-item {
+    background: white;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.surf-ticket-item:hover {
+    border-color: #007cba;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.surf-ticket-item.active {
+    border-color: #007cba;
+    background: #f0f8ff;
+}
+
+.surf-ticket-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.surf-ticket-user {
+    font-weight: 600;
+    color: #1d2327;
+    font-size: 14px;
+}
+
+.surf-ticket-status {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.surf-ticket-status.open {
+    background: #d4edda;
+    color: #155724;
+}
+
+.surf-ticket-status.closed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.surf-ticket-message {
+    color: #666;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.surf-ticket-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #999;
+}
+
+.surf-ticket-time {
+    font-size: 11px;
+}
+
+.surf-ticket-count {
+    background: #007cba;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.surf-conversation-panel {
+    background: white;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    min-height: 600px;
+}
+
+.surf-conversation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e1e5e9;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.surf-conversation-header h3 {
+    margin: 0;
+    color: #1d2327;
+    font-size: 16px;
+}
+
+.surf-conversation-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.surf-close-ticket-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+}
+
+.surf-close-ticket-btn:hover:not(:disabled) {
+    background: #c82333;
+}
+
+.surf-close-ticket-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.surf-conversation-messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.surf-empty-conversation {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #999;
+    text-align: center;
+}
+
+.surf-empty-conversation svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.surf-empty-conversation p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.surf-message-item {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.surf-message-item.admin {
+    align-items: flex-end;
+}
+
+.surf-message-item.user {
+    align-items: flex-start;
+}
+
+.surf-message-bubble {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.surf-message-item.admin .surf-message-bubble {
+    background: #007cba;
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.surf-message-item.user .surf-message-bubble {
+    background: #f1f3f4;
+    color: #1d2327;
+    border-bottom-left-radius: 4px;
+}
+
+.surf-message-meta {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+    padding: 0 8px;
+}
+
+.surf-conversation-input {
+    padding: 15px 20px;
+    border-top: 1px solid #e1e5e9;
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+.surf-conversation-input textarea {
+    width: 100%;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+}
+
+.surf-conversation-input textarea:focus {
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.1);
+}
+
+.surf-conversation-input-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.surf-send-reply-btn {
+    background: #007cba;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.surf-send-reply-btn:hover {
+    background: #005a87;
+}
+
+.surf-send-reply-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .surf-table-header {
@@ -417,6 +724,62 @@ if (!defined('ABSPATH')) {
                 <button class="surf-pagination-btn" id="prev-message-page" disabled>Previous</button>
                 <span class="surf-page-info" id="message-page-info">Page 1 of 1</span>
                 <button class="surf-pagination-btn" id="next-message-page" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="surf-settings-section">
+        <h2>🆘 Support Management</h2>
+        
+        <div class="surf-support-interface">
+            <!-- Left Panel: Tickets List -->
+            <div class="surf-tickets-panel">
+                <div class="surf-tickets-header">
+                    <h3>Support Tickets</h3>
+                    <div class="surf-tickets-controls">
+                        <select id="support-status-filter">
+                            <option value="all">All Tickets</option>
+                            <option value="open">Open</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                        <button class="surf-refresh-btn" id="refresh-support-tickets">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M1 4V10H7M23 20V14H17M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="surf-tickets-list" id="surf-tickets-list">
+                    <div class="surf-loading">Loading support tickets...</div>
+                </div>
+            </div>
+            
+            <!-- Right Panel: Conversation View -->
+            <div class="surf-conversation-panel">
+                <div class="surf-conversation-header">
+                    <h3 id="conversation-title">Select a ticket to view conversation</h3>
+                    <div class="surf-conversation-actions">
+                        <button id="close-ticket-btn" class="surf-close-ticket-btn" disabled>Close Ticket</button>
+                    </div>
+                </div>
+                
+                <div class="surf-conversation-messages" id="surf-conversation-messages">
+                    <div class="surf-empty-conversation">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <p>Select a support ticket to view the conversation</p>
+                    </div>
+                </div>
+                
+                <div class="surf-conversation-input" id="surf-conversation-input" style="display: none;">
+                    <textarea id="admin-reply-input" placeholder="Type your response..." rows="3"></textarea>
+                    <div class="surf-conversation-input-actions">
+                        <button id="send-reply-btn" class="surf-send-reply-btn">Send Reply</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -589,10 +952,16 @@ jQuery(document).ready(function($) {
     let currentMessagePage = 1;
     const messagePerPage = 10;
     
+    // Support management variables
+    let currentSupportTickets = [];
+    let selectedTicketUserId = null;
+    let supportStatusFilter = 'all';
+    
     // Load stats, user submissions, and messages on page load
     loadStats();
     loadUserSubmissions();
     loadMessages();
+    loadSupportTickets();
     
     // Initialize default sort indicator
     $(`.surf-sortable[data-sort="${currentSort}"]`).addClass(`surf-sort-${sortDirection}`);
@@ -882,6 +1251,235 @@ jQuery(document).ready(function($) {
     
     $('#next-message-page').on('click', function() {
         loadMessages(currentMessagePage + 1);
+    });
+    
+    // Support management functions
+    function loadSupportTickets() {
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'GET',
+            data: {
+                action: 'surf_social_get_support_tickets',
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>',
+                status: supportStatusFilter
+            },
+            success: function(response) {
+                if (response.success) {
+                    currentSupportTickets = response.data.tickets;
+                    displaySupportTickets();
+                } else {
+                    console.error('Error loading support tickets:', response.data);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error loading support tickets:', error);
+            }
+        });
+    }
+    
+    function displaySupportTickets() {
+        const ticketsList = $('#surf-tickets-list');
+        ticketsList.empty();
+        
+        if (currentSupportTickets.length === 0) {
+            ticketsList.html('<div class="surf-loading">No support tickets found</div>');
+            return;
+        }
+        
+        currentSupportTickets.forEach(ticket => {
+            const ticketEl = $(`
+                <div class="surf-ticket-item" data-user-id="${ticket.user_id}">
+                    <div class="surf-ticket-header">
+                        <div class="surf-ticket-user">${ticket.user_name}</div>
+                        <div class="surf-ticket-status ${ticket.status}">${ticket.status}</div>
+                    </div>
+                    <div class="surf-ticket-message">${ticket.last_message || 'No messages yet'}</div>
+                    <div class="surf-ticket-meta">
+                        <div class="surf-ticket-time">${formatTimeAgo(ticket.last_message_time)}</div>
+                        <div class="surf-ticket-count">${ticket.message_count}</div>
+                    </div>
+                </div>
+            `);
+            
+            ticketsList.append(ticketEl);
+        });
+        
+        // Add click handlers
+        $('.surf-ticket-item').on('click', function() {
+            const userId = $(this).data('user-id');
+            selectSupportTicket(userId);
+        });
+    }
+    
+    function selectSupportTicket(userId) {
+        selectedTicketUserId = userId;
+        
+        // Update UI
+        $('.surf-ticket-item').removeClass('active');
+        $(`.surf-ticket-item[data-user-id="${userId}"]`).addClass('active');
+        
+        // Load conversation
+        loadSupportConversation(userId);
+    }
+    
+    function loadSupportConversation(userId) {
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'GET',
+            data: {
+                action: 'surf_social_get_support_conversation',
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>',
+                user_id: userId
+            },
+            success: function(response) {
+                if (response.success) {
+                    displaySupportConversation(response.data.messages, response.data.user_info);
+                } else {
+                    console.error('Error loading support conversation:', response.data);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error loading support conversation:', error);
+            }
+        });
+    }
+    
+    function displaySupportConversation(messages, userInfo) {
+        const conversationMessages = $('#surf-conversation-messages');
+        const conversationTitle = $('#conversation-title');
+        const conversationInput = $('#surf-conversation-input');
+        const closeTicketBtn = $('#close-ticket-btn');
+        
+        // Update title
+        conversationTitle.text(`Chat with ${userInfo.user_name}`);
+        
+        // Show/hide input and close button based on status
+        if (userInfo.status === 'open') {
+            conversationInput.show();
+            closeTicketBtn.prop('disabled', false);
+        } else {
+            conversationInput.hide();
+            closeTicketBtn.prop('disabled', true);
+        }
+        
+        // Clear and populate messages
+        conversationMessages.empty();
+        
+        if (messages.length === 0) {
+            conversationMessages.html('<div class="surf-loading">No messages in this conversation</div>');
+            return;
+        }
+        
+        messages.forEach(message => {
+            const messageEl = $(`
+                <div class="surf-message-item ${message.message_type}">
+                    <div class="surf-message-bubble">${message.message}</div>
+                    <div class="surf-message-meta">
+                        ${message.message_type === 'admin' ? 'Admin' : message.user_name} • ${formatTimeAgo(message.created_at)}
+                    </div>
+                </div>
+            `);
+            conversationMessages.append(messageEl);
+        });
+        
+        // Scroll to bottom
+        conversationMessages.scrollTop(conversationMessages[0].scrollHeight);
+    }
+    
+    function sendAdminReply() {
+        const message = $('#admin-reply-input').val().trim();
+        if (!message || !selectedTicketUserId) return;
+        
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'POST',
+            data: {
+                action: 'surf_social_send_admin_reply',
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>',
+                user_id: selectedTicketUserId,
+                message: message
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#admin-reply-input').val('');
+                    // Reload conversation to show new message
+                    loadSupportConversation(selectedTicketUserId);
+                    // Reload tickets list to update counts
+                    loadSupportTickets();
+                } else {
+                    alert('Error sending reply: ' + response.data);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('Error sending reply: ' + error);
+            }
+        });
+    }
+    
+    function closeSupportTicket() {
+        if (!selectedTicketUserId) return;
+        
+        if (!confirm('Are you sure you want to close this support ticket?')) return;
+        
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'POST',
+            data: {
+                action: 'surf_social_close_support_ticket',
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>',
+                user_id: selectedTicketUserId
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Reload tickets and conversation
+                    loadSupportTickets();
+                    loadSupportConversation(selectedTicketUserId);
+                } else {
+                    alert('Error closing ticket: ' + response.data);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('Error closing ticket: ' + error);
+            }
+        });
+    }
+    
+    function formatTimeAgo(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return Math.floor(diffInSeconds / 60) + 'm ago';
+        if (diffInSeconds < 86400) return Math.floor(diffInSeconds / 3600) + 'h ago';
+        if (diffInSeconds < 2592000) return Math.floor(diffInSeconds / 86400) + 'd ago';
+        
+        return date.toLocaleDateString();
+    }
+    
+    // Support management event handlers
+    $('#refresh-support-tickets').on('click', function() {
+        loadSupportTickets();
+    });
+    
+    $('#support-status-filter').on('change', function() {
+        supportStatusFilter = $(this).val();
+        loadSupportTickets();
+    });
+    
+    $('#send-reply-btn').on('click', function() {
+        sendAdminReply();
+    });
+    
+    $('#admin-reply-input').on('keypress', function(e) {
+        if (e.which === 13 && !e.shiftKey) {
+            e.preventDefault();
+            sendAdminReply();
+        }
+    });
+    
+    $('#close-ticket-btn').on('click', function() {
+        closeSupportTicket();
     });
     
     // Update connection status when settings change

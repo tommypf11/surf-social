@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.42
+Version: 1.0.43
 Author: Thomas Fraher
 */
 
@@ -59,6 +59,10 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_user_submissions', array($this, 'ajax_get_user_submissions'));
         add_action('wp_ajax_surf_social_get_messages', array($this, 'ajax_get_messages'));
         add_action('wp_ajax_surf_social_delete_message', array($this, 'ajax_delete_message'));
+        add_action('wp_ajax_surf_social_get_support_tickets', array($this, 'ajax_get_support_tickets'));
+        add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
+        add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
+        add_action('wp_ajax_surf_social_close_support_ticket', array($this, 'ajax_close_support_ticket'));
     }
     
     /**
@@ -1164,6 +1168,190 @@ class Surf_Social {
      */
     public static function deactivate() {
         // Optional: Clean up if needed
+    }
+    
+    /**
+     * AJAX handler for getting support tickets
+     */
+    public function ajax_get_support_tickets() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
+        
+        global $wpdb;
+        $support_table = $wpdb->prefix . 'surf_social_support_messages';
+        $status_filter = sanitize_text_field($_GET['status'] ?? 'all');
+        
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$support_table'");
+        if (!$table_exists) {
+            wp_send_json_success(array('tickets' => array()));
+        }
+        
+        $where_clause = '';
+        if ($status_filter === 'open') {
+            $where_clause = "WHERE status = 'open'";
+        } elseif ($status_filter === 'closed') {
+            $where_clause = "WHERE status = 'closed'";
+        }
+        
+        $tickets = $wpdb->get_results(
+            "SELECT 
+                user_id,
+                user_name,
+                MAX(created_at) as last_message_time,
+                COUNT(*) as message_count,
+                status,
+                (SELECT message FROM $support_table s2 
+                 WHERE s2.user_id = s1.user_id 
+                 ORDER BY created_at DESC LIMIT 1) as last_message
+            FROM $support_table s1 
+            $where_clause
+            GROUP BY user_id, user_name, status
+            ORDER BY last_message_time DESC",
+            ARRAY_A
+        );
+        
+        wp_send_json_success(array('tickets' => $tickets));
+    }
+    
+    /**
+     * AJAX handler for getting support conversation
+     */
+    public function ajax_get_support_conversation() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
+        
+        global $wpdb;
+        $support_table = $wpdb->prefix . 'surf_social_support_messages';
+        $user_id = intval($_GET['user_id']);
+        
+        if (!$user_id) {
+            wp_send_json_error('User ID required');
+        }
+        
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$support_table'");
+        if (!$table_exists) {
+            wp_send_json_success(array('messages' => array(), 'user_info' => null));
+        }
+        
+        $messages = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $support_table 
+                WHERE user_id = %d 
+                ORDER BY created_at ASC",
+                $user_id
+            ),
+            ARRAY_A
+        );
+        
+        $user_info = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT user_id, user_name, status FROM $support_table 
+                WHERE user_id = %d 
+                LIMIT 1",
+                $user_id
+            ),
+            ARRAY_A
+        );
+        
+        wp_send_json_success(array('messages' => $messages, 'user_info' => $user_info));
+    }
+    
+    /**
+     * AJAX handler for sending admin reply
+     */
+    public function ajax_send_admin_reply() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
+        
+        global $wpdb;
+        $support_table = $wpdb->prefix . 'surf_social_support_messages';
+        $user_id = intval($_POST['user_id']);
+        $message = sanitize_textarea_field($_POST['message']);
+        $admin_id = get_current_user_id();
+        $admin_name = wp_get_current_user()->display_name;
+        
+        if (!$user_id || !$message) {
+            wp_send_json_error('User ID and message required');
+        }
+        
+        $result = $wpdb->insert(
+            $support_table,
+            array(
+                'user_id' => $user_id,
+                'user_name' => $wpdb->get_var($wpdb->prepare("SELECT user_name FROM $support_table WHERE user_id = %d LIMIT 1", $user_id)),
+                'admin_id' => $admin_id,
+                'admin_name' => $admin_name,
+                'message' => $message,
+                'message_type' => 'admin',
+                'status' => 'open',
+                'created_at' => current_time('mysql')
+            ),
+            array('%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
+        );
+        
+        if ($result) {
+            // Broadcast to user via real-time
+            $this->broadcast_admin_reply($user_id, $message, $admin_name);
+            wp_send_json_success('Reply sent successfully');
+        } else {
+            wp_send_json_error('Failed to send reply');
+        }
+    }
+    
+    /**
+     * AJAX handler for closing support ticket
+     */
+    public function ajax_close_support_ticket() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
+        
+        global $wpdb;
+        $support_table = $wpdb->prefix . 'surf_social_support_messages';
+        $user_id = intval($_POST['user_id']);
+        
+        if (!$user_id) {
+            wp_send_json_error('User ID required');
+        }
+        
+        $result = $wpdb->update(
+            $support_table,
+            array('status' => 'closed'),
+            array('user_id' => $user_id),
+            array('%s'),
+            array('%d')
+        );
+        
+        if ($result !== false) {
+            wp_send_json_success('Ticket closed successfully');
+        } else {
+            wp_send_json_error('Failed to close ticket');
+        }
+    }
+    
+    /**
+     * Broadcast admin reply to user
+     */
+    private function broadcast_admin_reply($user_id, $message, $admin_name) {
+        $pusher_key = get_option('surf_social_pusher_key');
+        $websocket_url = get_option('surf_social_websocket_url');
+        
+        if ($pusher_key) {
+            $this->broadcast_via_pusher('admin-support-reply', array(
+                'user_id' => $user_id,
+                'message' => $message,
+                'admin_name' => $admin_name,
+                'created_at' => current_time('mysql')
+            ));
+        }
+        
+        if ($websocket_url) {
+            $this->broadcast_via_websocket('admin-support-reply', array(
+                'user_id' => $user_id,
+                'message' => $message,
+                'admin_name' => $admin_name,
+                'created_at' => current_time('mysql')
+            ));
+        }
     }
 }
 

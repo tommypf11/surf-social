@@ -346,6 +346,9 @@
             case 'message-deleted':
                 handleMessageDeleted(data);
                 break;
+            case 'admin-support-reply':
+                handleAdminSupportReply(data);
+                break;
         }
     }
     
@@ -1271,6 +1274,8 @@
             handleIndividualMessage(data);
         } else if (data.type === 'support-chat') {
             handleSupportMessage(data);
+        } else if (data.type === 'admin-support-reply') {
+            handleAdminSupportReply(data);
         } else {
             // Web chat message
             const messageEl = createMessageElement(msg);
@@ -1366,6 +1371,43 @@
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
+        }
+    }
+    
+    /**
+     * Handle admin support reply
+     */
+    function handleAdminSupportReply(data) {
+        // Only show if we're the target user
+        if (data.user_id !== config.currentUser.id) {
+            return;
+        }
+        
+        const msg = {
+            user_id: 'admin',
+            user_name: data.admin_name,
+            message: data.message,
+            created_at: data.created_at,
+            user_color: '#E74C3C'
+        };
+        
+        // Store message in support chat
+        if (!individualChats.has('admin')) {
+            individualChats.set('admin', []);
+        }
+        individualChats.get('admin').push(msg);
+        
+        // If we're currently viewing support chat, show the message
+        if (currentTab === 'support') {
+            const messageEl = createMessageElement(msg);
+            chatMessages.appendChild(messageEl);
+            scrollToBottom();
+        }
+        
+        // Update unread count if chat is closed
+        if (!chatDrawer.classList.contains('open')) {
+            unreadCount++;
+            updateUnreadBadge();
         }
     }
     
