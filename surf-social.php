@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.39
+Version: 1.0.40
 Author: Thomas Fraher
 */
 
@@ -55,6 +55,8 @@ class Surf_Social {
         add_action('wp_footer', array($this, 'render_chat_widget'));
         add_action('rest_api_init', array($this, 'register_rest_routes'));
         add_action('init', array($this, 'add_cors_headers'));
+        add_action('wp_ajax_surf_social_get_stats', array($this, 'ajax_get_stats'));
+        add_action('wp_ajax_surf_social_get_user_submissions', array($this, 'ajax_get_user_submissions'));
     }
     
     /**
@@ -62,6 +64,39 @@ class Surf_Social {
      */
     public function init() {
         load_plugin_textdomain('surf-social', false, dirname(plugin_basename(__FILE__)) . '/languages');
+        
+        // Ensure database tables exist
+        $this->ensure_database_tables();
+    }
+    
+    /**
+     * Ensure database tables exist
+     */
+    private function ensure_database_tables() {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        // Check if guests table exists
+        $guests_table = $wpdb->prefix . 'surf_social_guests';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$guests_table'");
+        
+        if (!$table_exists) {
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            
+            $sql = "CREATE TABLE IF NOT EXISTS $guests_table (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                user_id varchar(100) NOT NULL,
+                name varchar(100) NOT NULL,
+                email varchar(255) NOT NULL,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY user_id (user_id),
+                KEY email (email),
+                KEY created_at (created_at)
+            ) $charset_collate;";
+            dbDelta($sql);
+        }
     }
     
     /**
@@ -685,6 +720,100 @@ class Surf_Social {
         );
         
         return new WP_REST_Response(array('tickets' => $tickets), 200);
+    }
+    
+    /**
+     * AJAX handler for getting stats
+     */
+    public function ajax_get_stats() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        $web_messages_table = $wpdb->prefix . 'surf_social_messages';
+        $individual_messages_table = $wpdb->prefix . 'surf_social_individual_messages';
+        $support_messages_table = $wpdb->prefix . 'surf_social_support_messages';
+        $guests_table = $wpdb->prefix . 'surf_social_guests';
+        
+        // Helper function to safely get count
+        $get_count = function($table) use ($wpdb) {
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table'");
+            return $table_exists ? $wpdb->get_var("SELECT COUNT(*) FROM $table") : 0;
+        };
+        
+        $stats = array(
+            'total_web_messages' => $get_count($web_messages_table),
+            'total_individual_messages' => $get_count($individual_messages_table),
+            'total_support_messages' => $get_count($support_messages_table),
+            'messages_today' => $wpdb->get_var("SHOW TABLES LIKE '$web_messages_table'") ? 
+                $wpdb->get_var("SELECT COUNT(*) FROM $web_messages_table WHERE DATE(created_at) = CURDATE()") : 0,
+            'unique_users' => $wpdb->get_var("SHOW TABLES LIKE '$web_messages_table'") ? 
+                $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $web_messages_table") : 0,
+            'active_support_tickets' => $wpdb->get_var("SHOW TABLES LIKE '$support_messages_table'") ? 
+                $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'") : 0,
+            'user_submissions' => $get_count($guests_table)
+        );
+        
+        wp_send_json_success($stats);
+    }
+    
+    /**
+     * AJAX handler for getting user submissions
+     */
+    public function ajax_get_user_submissions() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        $guests_table = $wpdb->prefix . 'surf_social_guests';
+        $page = intval($_GET['page']) ?: 1;
+        $per_page = intval($_GET['per_page']) ?: 10;
+        $offset = ($page - 1) * $per_page;
+        
+        // Check if table exists, if not return empty results
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$guests_table'");
+        if (!$table_exists) {
+            wp_send_json_success(array(
+                'submissions' => array(),
+                'total_count' => 0,
+                'total_pages' => 0,
+                'current_page' => $page,
+                'per_page' => $per_page
+            ));
+        }
+        
+        // Get total count
+        $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $guests_table");
+        $total_pages = ceil($total_count / $per_page);
+        
+        // Get submissions with pagination, sorted by most recent first
+        $submissions = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT name, email, created_at, updated_at 
+                 FROM $guests_table 
+                 ORDER BY created_at DESC 
+                 LIMIT %d OFFSET %d",
+                $per_page,
+                $offset
+            ),
+            ARRAY_A
+        );
+        
+        wp_send_json_success(array(
+            'submissions' => $submissions,
+            'total_count' => $total_count,
+            'total_pages' => $total_pages,
+            'current_page' => $page,
+            'per_page' => $per_page
+        ));
     }
     
     /**
