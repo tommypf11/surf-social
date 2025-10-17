@@ -44,9 +44,9 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--surf-primary) 0%, var(--surf-secondary) 100%);
-    color: var(--surf-text);
-    border: none;
+    background: white;
+    color: black;
+    border: 2px solid black;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -54,7 +54,6 @@
     box-shadow: var(--surf-shadow);
     transition: var(--surf-transition);
     backdrop-filter: var(--surf-backdrop-blur);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
 }
 
@@ -399,7 +398,7 @@
 
 /* Avatar Dock */
 .surf-avatar-dock {
-    min-width: 45px;
+    min-width: 60px;
     height: 45px;
     display: none;
     align-items: center;
@@ -413,7 +412,7 @@
     overflow: visible;
     flex-shrink: 0;
     position: relative;
-    padding: 0 8px;
+    padding: 0 12px 0 16px;
     gap: -5px;
 }
 
@@ -527,7 +526,7 @@
 /* Branding */
 .surf-branding {
     position: fixed;
-    bottom: -25px;
+    bottom: 5px;
     right: 20px;
     font-size: 11px;
     color: #95A5A6;
@@ -557,10 +556,10 @@
     }
     
     .surf-avatar-dock {
-        min-width: 35px;
+        min-width: 50px;
         height: 35px;
         border-radius: 17.5px;
-        padding: 0 6px;
+        padding: 0 8px 0 12px;
     }
     
     .surf-avatar-dock.multiple {
@@ -579,6 +578,9 @@
     .surf-chat-toggle {
         width: 50px;
         height: 50px;
+        border: 2px solid black;
+        background: white;
+        color: black;
     }
     
     .surf-friend-user {
