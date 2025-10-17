@@ -748,6 +748,9 @@ if (!defined('ABSPATH')) {
                             </svg>
                             Refresh
                         </button>
+                        <button class="surf-refresh-btn" id="debug-support" style="background: #ff6b6b;">
+                            Debug
+                        </button>
                     </div>
                 </div>
                 
@@ -1313,6 +1316,7 @@ jQuery(document).ready(function($) {
     }
     
     function selectSupportTicket(userId) {
+        console.log('Selecting support ticket for user ID:', userId, 'Type:', typeof userId);
         selectedTicketUserId = userId;
         
         // Update UI
@@ -1324,6 +1328,7 @@ jQuery(document).ready(function($) {
     }
     
     function loadSupportConversation(userId) {
+        console.log('Loading support conversation for user ID:', userId);
         $.ajax({
             url: '<?php echo admin_url('admin-ajax.php'); ?>',
             type: 'GET',
@@ -1333,6 +1338,7 @@ jQuery(document).ready(function($) {
                 user_id: userId
             },
             success: function(response) {
+                console.log('Support conversation response:', response);
                 if (response.success) {
                     displaySupportConversation(response.data.messages, response.data.user_info);
                 } else {
@@ -1481,6 +1487,25 @@ jQuery(document).ready(function($) {
     
     $('#close-ticket-btn').on('click', function() {
         closeSupportTicket();
+    });
+    
+    $('#debug-support').on('click', function() {
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'GET',
+            data: {
+                action: 'surf_social_debug_support',
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
+            },
+            success: function(response) {
+                console.log('Debug support data:', response);
+                alert('Debug data logged to console. Check browser console for details.');
+            },
+            error: function(xhr, status, error) {
+                console.error('Debug error:', error, xhr.responseText);
+                alert('Debug error: ' + error);
+            }
+        });
     });
     
     
