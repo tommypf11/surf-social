@@ -26,6 +26,8 @@
     let individualChats = new Map(); // Store individual chat messages
     let adminUser = { id: 'admin', name: 'Admin', color: '#E74C3C' };
     let hasSetGuestName = false; // Track if guest has set their name
+    let hasSetGuestEmail = false; // Track if guest has set their email
+    let hasSetGuestInfo = false; // Track if guest has completed registration
     let isFirstMessage = true; // Track if this is the first message attempt
     
     // DOM Elements
@@ -38,6 +40,13 @@
     const avatarDock = document.getElementById('surf-avatar-dock');
     const cursorsContainer = document.getElementById('surf-cursors-container');
     const unreadBadge = document.getElementById('surf-unread-badge');
+    
+    // Guest Registration Elements
+    const guestRegistration = document.getElementById('surf-guest-registration');
+    const normalChat = document.getElementById('surf-normal-chat');
+    const nameInput = document.getElementById('surf-name-input');
+    const emailInput = document.getElementById('surf-email-input');
+    const joinButton = document.getElementById('surf-join-button');
     
     /**
      * Initialize the plugin
@@ -55,8 +64,8 @@
         // Initialize avatar dock state
         updateAvatarDock();
         
-        // Initialize guest name input if user is guest
-        initGuestNameInput();
+        // Initialize guest registration if user is guest
+        initGuestRegistration();
     }
     
     /**
@@ -75,12 +84,39 @@
         });
         chatSend.addEventListener('click', sendMessage);
         
-        // Add input validation for guest name
-        chatInput.addEventListener('input', (e) => {
-            if (config.currentUser.isGuest && !hasSetGuestName) {
-                validateGuestNameInput(e.target.value);
-            }
-        });
+        // Add input validation for guest registration
+        if (nameInput) {
+            nameInput.addEventListener('input', (e) => {
+                validateGuestInputs();
+            });
+        }
+        
+        if (emailInput) {
+            emailInput.addEventListener('input', (e) => {
+                validateGuestInputs();
+            });
+        }
+        
+        if (joinButton) {
+            joinButton.addEventListener('click', handleGuestJoin);
+        }
+        
+        // Add Enter key support for guest registration
+        if (nameInput) {
+            nameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    emailInput.focus();
+                }
+            });
+        }
+        
+        if (emailInput) {
+            emailInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleGuestJoin();
+                }
+            });
+        }
         
         // Tab switching
         chatTabs.forEach(tab => {
@@ -994,10 +1030,9 @@
         
         if (!message) return;
         
-        // Check if this is a guest trying to set their name
-        if (config.currentUser.isGuest && !hasSetGuestName && isLikelyName(message)) {
-            await setGuestName(message);
-            return;
+        // Ensure guest has completed registration before allowing messages
+        if (config.currentUser.isGuest && !hasSetGuestInfo) {
+            return; // Don't allow messages until registration is complete
         }
         
         chatInput.disabled = true;
@@ -1287,77 +1322,113 @@
     }
     
     /**
-     * Initialize guest name input
+     * Initialize guest registration
      */
-    function initGuestNameInput() {
-        if (config.currentUser.isGuest && !hasSetGuestName) {
-            chatInput.placeholder = 'Choose a Name to join the chat';
-            chatInput.maxLength = 20;
-        }
-    }
-    
-    /**
-     * Check if input looks like a name
-     */
-    function isLikelyName(text) {
-        return text.length <= 20 && 
-               text.length >= 2 && 
-               !text.includes(' ') && 
-               /^[a-zA-Z]+$/.test(text) &&
-               isFirstMessage;
-    }
-    
-    /**
-     * Validate guest name input
-     */
-    function validateGuestNameInput(text) {
-        const isValid = isLikelyName(text);
-        
-        // Add validating class for smooth transitions
-        chatInput.classList.add('validating');
-        
-        // Update input styling based on validation
-        if (text.length > 0) {
-            if (isValid) {
-                chatInput.style.borderColor = '#10B981';
-                chatInput.style.color = '#10B981';
-                chatInput.placeholder = 'Press Enter to join as ' + text;
-            } else {
-                chatInput.style.borderColor = '#EF4444';
-                chatInput.style.color = '#EF4444';
-                if (text.length < 2) {
-                    chatInput.placeholder = 'Name must be at least 2 characters';
-                } else if (text.includes(' ')) {
-                    chatInput.placeholder = 'No spaces allowed in name';
-                } else if (!/^[a-zA-Z]+$/.test(text)) {
-                    chatInput.placeholder = 'Only letters allowed';
-                } else {
-                    chatInput.placeholder = 'Name too long (max 20 characters)';
-                }
+    function initGuestRegistration() {
+        if (config.currentUser.isGuest && !hasSetGuestInfo) {
+            // Show guest registration form
+            if (guestRegistration) {
+                guestRegistration.style.display = 'flex';
+            }
+            if (normalChat) {
+                normalChat.style.display = 'none';
+            }
+            
+            // Focus on name input
+            if (nameInput) {
+                setTimeout(() => nameInput.focus(), 100);
             }
         } else {
-            chatInput.style.borderColor = '';
-            chatInput.style.color = '';
-            chatInput.placeholder = 'Choose a Name to join the chat';
+            // Show normal chat
+            if (guestRegistration) {
+                guestRegistration.style.display = 'none';
+            }
+            if (normalChat) {
+                normalChat.style.display = 'flex';
+            }
         }
-        
-        // Remove validating class after transition
-        setTimeout(() => {
-            chatInput.classList.remove('validating');
-        }, 200);
     }
     
     /**
-     * Set guest name
+     * Validate guest inputs and update UI
      */
-    async function setGuestName(name) {
+    function validateGuestInputs() {
+        const name = nameInput ? nameInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim() : '';
+        
+        const nameValid = validateName(name);
+        const emailValid = validateEmail(email);
+        
+        // Update input styling
+        updateInputValidation(nameInput, nameValid, name);
+        updateInputValidation(emailInput, emailValid, email);
+        
+        // Update join button state
+        if (joinButton) {
+            joinButton.disabled = !(nameValid && emailValid);
+        }
+        
+        return nameValid && emailValid;
+    }
+    
+    /**
+     * Validate name input
+     */
+    function validateName(name) {
+        return name.length >= 2 && 
+               name.length <= 20 && 
+               !name.includes(' ') && 
+               /^[a-zA-Z]+$/.test(name);
+    }
+    
+    /**
+     * Validate email input
+     */
+    function validateEmail(email) {
+        return email.length > 0 && 
+               /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+    
+    /**
+     * Update input validation styling
+     */
+    function updateInputValidation(input, isValid, value) {
+        if (!input) return;
+        
+        // Remove existing validation classes
+        input.classList.remove('valid', 'invalid');
+        
+        if (value.length > 0) {
+            if (isValid) {
+                input.classList.add('valid');
+            } else {
+                input.classList.add('invalid');
+            }
+        }
+    }
+    
+    /**
+     * Handle guest join button click
+     */
+    async function handleGuestJoin() {
+        const name = nameInput ? nameInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim() : '';
+        
+        if (!validateGuestInputs()) {
+            return; // Validation failed
+        }
+        
         try {
             // Show success animation
             showNameSuccessAnimation();
             
-            // Update user name
+            // Save guest information to backend
+            await saveGuestInfo(name, email);
+            
+            // Update user info
             config.currentUser.name = name;
-            hasSetGuestName = true;
+            config.currentUser.email = email;
+            hasSetGuestInfo = true;
             
             // Update cursor name immediately
             updateCurrentUserCursor();
@@ -1365,25 +1436,74 @@
             // Update avatar dock
             updateAvatarDock();
             
-            // Clear input and update placeholder
-            chatInput.value = '';
-            chatInput.placeholder = 'Type a message...';
-            chatInput.maxLength = 1000; // Reset to normal message length
-            chatInput.style.borderColor = '';
-            chatInput.style.color = '';
-            chatInput.classList.remove('validating');
+            // Hide registration form and show normal chat
+            transitionToNormalChat();
             
             // Broadcast updated presence
             broadcastPresence();
             
-            // Focus input for next message
+            // Focus on chat input
             setTimeout(() => {
-                chatInput.focus();
+                if (chatInput) {
+                    chatInput.focus();
+                }
             }, 500);
             
         } catch (error) {
-            console.error('Failed to set guest name:', error);
+            console.error('Failed to join chat:', error);
         }
+    }
+    
+    /**
+     * Save guest information to backend
+     */
+    async function saveGuestInfo(name, email) {
+        try {
+            const response = await fetch(`${config.apiUrl}guest/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    user_id: config.currentUser.id,
+                    name: name,
+                    email: email
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save guest information');
+            }
+            
+            const data = await response.json();
+            console.log('Guest registered successfully:', data);
+            
+        } catch (error) {
+            console.error('Failed to save guest information:', error);
+            // Don't throw error - allow user to continue even if backend save fails
+        }
+    }
+    
+    /**
+     * Transition from registration form to normal chat
+     */
+    function transitionToNormalChat() {
+        // Add transition classes
+        if (guestRegistration) {
+            guestRegistration.classList.add('hidden');
+        }
+        
+        // Show normal chat after transition
+        setTimeout(() => {
+            if (guestRegistration) {
+                guestRegistration.style.display = 'none';
+            }
+            if (normalChat) {
+                normalChat.style.display = 'flex';
+                normalChat.classList.remove('hidden');
+            }
+        }, 300);
     }
     
     /**
@@ -1399,25 +1519,27 @@
             </svg>
         `;
         
-        // Position the success icon over the input
-        const inputContainer = chatInput.parentElement;
-        inputContainer.style.position = 'relative';
-        inputContainer.appendChild(successIcon);
-        
-        // Animate in
-        setTimeout(() => {
-            successIcon.classList.add('show');
-        }, 10);
-        
-        // Remove after animation
-        setTimeout(() => {
-            successIcon.classList.add('hide');
+        // Position the success icon over the join button
+        const inputContainer = joinButton ? joinButton.parentElement : document.querySelector('.surf-chat-input-container');
+        if (inputContainer) {
+            inputContainer.style.position = 'relative';
+            inputContainer.appendChild(successIcon);
+            
+            // Animate in
             setTimeout(() => {
-                if (successIcon.parentElement) {
-                    successIcon.parentElement.removeChild(successIcon);
-                }
-            }, 300);
-        }, 1500);
+                successIcon.classList.add('show');
+            }, 10);
+            
+            // Remove after animation
+            setTimeout(() => {
+                successIcon.classList.add('hide');
+                setTimeout(() => {
+                    if (successIcon.parentElement) {
+                        successIcon.parentElement.removeChild(successIcon);
+                    }
+                }, 300);
+            }, 1500);
+        }
     }
     
     /**

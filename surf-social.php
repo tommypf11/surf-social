@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.33
+Version: 1.0.34
 Author: Thomas Fraher
 */
 
@@ -140,6 +140,7 @@ class Surf_Social {
             'currentUser' => array(
                 'id' => $user_id,
                 'name' => $user_name,
+                'email' => '', // Will be set by guest registration
                 'avatar' => $avatar_url,
                 'color' => $this->get_user_color($user_id),
                 'isGuest' => $is_guest
@@ -294,6 +295,13 @@ class Surf_Social {
             'methods' => 'GET',
             'callback' => array($this, 'get_stats'),
             'permission_callback' => array($this, 'check_admin_permission')
+        ));
+        
+        // Guest registration endpoint
+        register_rest_route('surf-social/v1', '/guest/register', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'register_guest'),
+            'permission_callback' => '__return_true'
         ));
     }
     
@@ -681,6 +689,70 @@ class Surf_Social {
     }
     
     /**
+     * Register guest user
+     */
+    public function register_guest($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_guests';
+        
+        $user_id = $request->get_param('user_id');
+        $name = $request->get_param('name');
+        $email = $request->get_param('email');
+        
+        if (empty($user_id) || empty($name) || empty($email)) {
+            return new WP_Error('invalid_data', 'User ID, name, and email are required', array('status' => 400));
+        }
+        
+        // Validate email format
+        if (!is_email($email)) {
+            return new WP_Error('invalid_email', 'Invalid email format', array('status' => 400));
+        }
+        
+        // Check if guest already exists
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE user_id = %s",
+            $user_id
+        ));
+        
+        if ($existing) {
+            // Update existing guest
+            $result = $wpdb->update(
+                $table_name,
+                array(
+                    'name' => sanitize_text_field($name),
+                    'email' => sanitize_email($email),
+                    'updated_at' => current_time('mysql')
+                ),
+                array('user_id' => $user_id),
+                array('%s', '%s', '%s'),
+                array('%s')
+            );
+        } else {
+            // Insert new guest
+            $result = $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => $user_id,
+                    'name' => sanitize_text_field($name),
+                    'email' => sanitize_email($email),
+                    'created_at' => current_time('mysql'),
+                    'updated_at' => current_time('mysql')
+                ),
+                array('%s', '%s', '%s', '%s', '%s')
+            );
+        }
+        
+        if ($result !== false) {
+            return new WP_REST_Response(array(
+                'success' => true,
+                'message' => 'Guest registered successfully'
+            ), 200);
+        }
+        
+        return new WP_Error('save_failed', 'Failed to register guest', array('status' => 500));
+    }
+    
+    /**
      * Check admin permission
      */
     public function check_admin_permission($request) {
@@ -746,6 +818,22 @@ class Surf_Social {
             KEY user_id (user_id),
             KEY admin_id (admin_id),
             KEY status (status),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+        dbDelta($sql);
+        
+        // Guest users table
+        $table_name = $wpdb->prefix . 'surf_social_guests';
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id varchar(100) NOT NULL,
+            name varchar(100) NOT NULL,
+            email varchar(255) NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY user_id (user_id),
+            KEY email (email),
             KEY created_at (created_at)
         ) $charset_collate;";
         dbDelta($sql);

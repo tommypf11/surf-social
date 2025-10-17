@@ -313,6 +313,85 @@
     gap: 8px;
     padding: 16px;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+/* Guest Registration Form */
+.surf-guest-registration {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.surf-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.surf-name-input, .surf-email-input {
+    flex: 1;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    color: var(--surf-text);
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.surf-name-input::placeholder, .surf-email-input::placeholder {
+    color: var(--surf-text-muted);
+}
+
+.surf-name-input:focus, .surf-email-input:focus {
+    border-color: var(--surf-accent);
+    background: white;
+}
+
+.surf-join-button {
+    background: var(--surf-primary);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    margin-top: 4px;
+}
+
+.surf-join-button:hover {
+    background: var(--surf-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.surf-join-button:active {
+    transform: translateY(0);
+}
+
+.surf-join-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Normal Chat Input (after registration) */
+.surf-normal-chat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
 }
 
 #surf-social-widget .surf-chat-send {
@@ -384,6 +463,44 @@
 .surf-chat-input[style*="border-color: #EF4444"]::placeholder {
     color: #EF4444 !important;
     font-weight: 500;
+}
+
+/* Guest Registration Input Validation */
+.surf-name-input.valid, .surf-email-input.valid {
+    border-color: #10B981;
+    color: #10B981;
+}
+
+.surf-name-input.invalid, .surf-email-input.invalid {
+    border-color: #EF4444;
+    color: #EF4444;
+}
+
+.surf-name-input.valid::placeholder, .surf-email-input.valid::placeholder {
+    color: #10B981;
+    font-weight: 500;
+}
+
+.surf-name-input.invalid::placeholder, .surf-email-input.invalid::placeholder {
+    color: #EF4444;
+    font-weight: 500;
+}
+
+/* Form transition animations */
+.surf-guest-registration, .surf-normal-chat {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.surf-guest-registration.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+}
+
+.surf-normal-chat.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
 }
 
 /* Success Animation */
@@ -686,6 +803,26 @@
     .surf-chat-title {
         font-size: 20px;
         font-weight: 700;
+    }
+    
+    /* Guest Registration Mobile Styles */
+    .surf-guest-registration {
+        gap: 8px;
+    }
+    
+    .surf-input-row {
+        gap: 6px;
+    }
+    
+    .surf-name-input, .surf-email-input {
+        padding: 12px 14px;
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+    
+    .surf-join-button {
+        padding: 14px 20px;
+        font-size: 16px;
+        margin-top: 6px;
     }
 }
 
