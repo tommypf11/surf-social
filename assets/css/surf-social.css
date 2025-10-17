@@ -28,11 +28,19 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
+/* Bottom Widget Bar */
+.surf-widget-bar {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1000000;
+}
+
 /* Chat Toggle Button */
 .surf-chat-toggle {
-    position: fixed;
-    bottom: 80px;
-    right: 20px;
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -45,9 +53,9 @@
     justify-content: center;
     box-shadow: var(--surf-shadow);
     transition: var(--surf-transition);
-    z-index: 1000000;
     backdrop-filter: var(--surf-backdrop-blur);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
 }
 
 .surf-chat-toggle:hover {
@@ -79,26 +87,26 @@
 /* Chat Drawer */
 .surf-chat-drawer {
     position: fixed;
-    bottom: 0;
-    right: 0;
+    bottom: 100px;
+    right: 20px;
     width: 100%;
     max-width: 420px;
     height: 75vh;
     max-height: 650px;
     background: rgba(22, 33, 62, 0.95);
     backdrop-filter: var(--surf-backdrop-blur);
-    border-radius: var(--surf-border-radius) var(--surf-border-radius) 0 0;
+    border-radius: var(--surf-border-radius);
     box-shadow: var(--surf-shadow);
     border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: column;
-    transform: translateX(100%) scale(0.95);
+    transform: translateY(100%) scale(0.95);
     transition: var(--surf-transition);
     z-index: 999998;
 }
 
 .surf-chat-drawer.open {
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
 }
 
 /* Chat Header */
@@ -387,75 +395,80 @@
 
 /* Avatar Dock */
 .surf-avatar-dock {
-    position: fixed;
-    bottom: 50px;
-    right: 20px;
+    width: 60px;
+    height: 60px;
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: var(--surf-backdrop-blur);
-    padding: 4px 8px;
-    border-radius: 12px;
+    border-radius: 50%;
     box-shadow: var(--surf-shadow);
     border: 1px solid rgba(0, 0, 0, 0.1);
-    z-index: 999997;
     transition: var(--surf-transition);
-    max-width: 200px;
     overflow: hidden;
-    flex-wrap: wrap;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .surf-avatar-dock.hidden {
-    transform: translateX(calc(100% + 20px));
+    opacity: 0;
+    transform: scale(0.8);
 }
 
 .surf-avatar-chip {
-    width: 18px;
-    height: 18px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 8px;
-    color: #333;
-    background-color: white;
+    font-size: 16px;
+    color: white;
+    background-color: var(--surf-primary);
     cursor: pointer;
     transition: all 0.2s;
-    position: relative;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-    flex-shrink: 0;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 2px solid white;
+    z-index: 1;
 }
 
 .surf-avatar-chip:hover {
-    transform: scale(1.1);
+    transform: translate(-50%, -50%) scale(1.1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 2;
 }
 
 .surf-avatar-chip.surf-avatar-more {
-    background: var(--surf-primary);
-    font-size: 8px;
+    background: var(--surf-secondary);
+    font-size: 14px;
+    font-weight: 700;
     cursor: pointer;
+    color: white;
 }
 
 .surf-avatar-chip.surf-avatar-more:hover {
-    background: var(--surf-secondary);
-    transform: scale(1.05);
+    background: var(--surf-accent);
+    transform: translate(-50%, -50%) scale(1.05);
 }
 
 /* Removed expand button styles - no longer needed */
 
 .surf-avatar-unread {
     position: absolute;
-    top: -4px;
-    right: -4px;
+    top: 5px;
+    right: 5px;
     width: 12px;
     height: 12px;
     background: #E74C3C;
     border-radius: 50%;
-    border: 2px solid var(--surf-secondary);
+    border: 2px solid white;
+    z-index: 3;
 }
 
 /* Presence Cursors */
@@ -509,7 +522,7 @@
     font-size: 11px;
     color: #95A5A6;
     z-index: 999995;
-    margin-bottom: 20px;
+    margin-bottom: 100px;
 }
 
 .surf-branding strong {
@@ -523,28 +536,31 @@
         width: 100%;
         height: 85vh;
         max-height: none;
-        border-radius: var(--surf-border-radius) var(--surf-border-radius) 0 0;
+        border-radius: var(--surf-border-radius);
+        bottom: 80px;
+        right: 10px;
+    }
+    
+    .surf-widget-bar {
+        right: 10px;
+        bottom: 10px;
+        gap: 8px;
     }
     
     .surf-avatar-dock {
-        right: 10px;
-        bottom: 50px;
-        padding: 4px 8px;
-        border-radius: 12px;
-        max-width: 150px;
+        width: 50px;
+        height: 50px;
     }
     
     .surf-avatar-chip {
-        width: 16px;
-        height: 16px;
-        font-size: 7px;
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
     }
     
     /* Removed expand button responsive styles */
     
     .surf-chat-toggle {
-        right: 10px;
-        bottom: 70px;
         width: 50px;
         height: 50px;
     }

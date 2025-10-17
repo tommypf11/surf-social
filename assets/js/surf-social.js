@@ -500,7 +500,7 @@
     }
     
     /**
-     * Update avatar dock - now always shows all users (auto-expanded)
+     * Update avatar dock - shows the most recent user or user count
      */
     function updateAvatarDock() {
         const existingChips = avatarDock.querySelectorAll('.surf-avatar-chip:not(.surf-avatar-more)');
@@ -514,30 +514,36 @@
             return;
         }
         
-        // Show avatar dock and display all users
+        // Show avatar dock
         avatarDock.style.display = 'flex';
         
-        users.forEach((cursor, index) => {
+        // Show the most recent user (last in the array) or first user
+        const displayUser = users[users.length - 1] || users[0];
+        
+        if (displayUser) {
             const chip = document.createElement('div');
             chip.className = 'surf-avatar-chip';
-            // Keep white background, use user color for border or accent
-            chip.style.borderColor = cursor.user.color;
-            chip.textContent = cursor.user.name.charAt(0).toUpperCase();
-            chip.title = cursor.user.name;
-            chip.dataset.userId = cursor.user.id;
+            chip.style.backgroundColor = displayUser.user.color;
+            chip.textContent = displayUser.user.name.charAt(0).toUpperCase();
+            chip.title = `${displayUser.user.name} (${users.length} online)`;
+            chip.dataset.userId = displayUser.user.id;
             
-            if (index === 0) {
+            // Add unread indicator if there are unread messages
+            if (unreadCount > 0) {
                 const unreadDot = document.createElement('div');
                 unreadDot.className = 'surf-avatar-unread';
                 chip.appendChild(unreadDot);
             }
             
             avatarDock.appendChild(chip);
-        });
+        }
         
-        // Hide +N chip since we're always showing all users
+        // Update the +N chip to show total count
         const moreChip = avatarDock.querySelector('.surf-avatar-more');
-        moreChip.style.display = 'none';
+        if (moreChip) {
+            moreChip.textContent = users.length > 1 ? `+${users.length}` : '';
+            moreChip.style.display = users.length > 1 ? 'flex' : 'none';
+        }
     }
     
     /**
