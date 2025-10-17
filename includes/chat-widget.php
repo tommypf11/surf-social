@@ -11,15 +11,6 @@ if (!defined('ABSPATH')) {
 <div id="surf-social-widget">
     <!-- Chat Drawer -->
     <div id="surf-chat-drawer" class="surf-chat-drawer">
-        <div class="surf-chat-header">
-            <span class="surf-chat-title">Web Chat</span>
-            <button class="surf-chat-close" aria-label="Close chat">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </button>
-        </div>
-        
         <div class="surf-chat-tabs">
             <button class="surf-chat-tab active" data-tab="web">Web Chat</button>
             <button class="surf-chat-tab" data-tab="friend">Friend Chat</button>
@@ -30,17 +21,8 @@ if (!defined('ABSPATH')) {
             <!-- Messages will be loaded here -->
         </div>
         
-        <div class="surf-chat-pagination">
-            <button class="surf-chat-load-more" id="surf-chat-load-more">Load More</button>
-        </div>
-        
         <div class="surf-chat-input-container">
-            <button class="surf-chat-attach" aria-label="Attach file">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M15.5 4L9 10.5L8 9.5L14.5 3M15.5 4L11 8.5M15.5 4L11 8.5M15.5 4L11 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
-            <input type="text" class="surf-chat-input" placeholder="Write a message..." id="surf-chat-input">
+            <input type="text" class="surf-chat-input" placeholder="" id="surf-chat-input">
             <button class="surf-chat-send" aria-label="Send message">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

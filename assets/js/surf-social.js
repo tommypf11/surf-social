@@ -29,7 +29,6 @@
     // DOM Elements
     const chatDrawer = document.getElementById('surf-chat-drawer');
     const chatToggle = document.getElementById('surf-chat-toggle');
-    const chatClose = document.querySelector('.surf-chat-close');
     const chatMessages = document.getElementById('surf-chat-messages');
     const chatInput = document.getElementById('surf-chat-input');
     const chatSend = document.querySelector('.surf-chat-send');
@@ -37,7 +36,6 @@
     const avatarDock = document.getElementById('surf-avatar-dock');
     const cursorsContainer = document.getElementById('surf-cursors-container');
     const unreadBadge = document.getElementById('surf-unread-badge');
-    const loadMoreBtn = document.getElementById('surf-chat-load-more');
     
     /**
      * Initialize the plugin
@@ -62,7 +60,6 @@
     function setupEventListeners() {
         // Chat toggle
         chatToggle.addEventListener('click', toggleChat);
-        chatClose.addEventListener('click', toggleChat);
         
         // Chat input
         chatInput.addEventListener('keypress', (e) => {
@@ -111,7 +108,6 @@
         });
         
         // Load more messages
-        loadMoreBtn.addEventListener('click', loadMoreMessages);
         
         // Click outside to close chat
         document.addEventListener('click', (e) => {
@@ -842,7 +838,6 @@
             if (data.messages && data.messages.length > 0) {
                 renderMessages(data.messages);
                 hasMoreMessages = data.has_more;
-                loadMoreBtn.style.display = hasMoreMessages ? 'block' : 'none';
             } else {
                 showEmptyState();
             }
@@ -854,44 +849,6 @@
         isLoadingMessages = false;
     }
     
-    /**
-     * Load more messages
-     */
-    async function loadMoreMessages() {
-        if (isLoadingMessages || !hasMoreMessages) return;
-        
-        isLoadingMessages = true;
-        loadMoreBtn.disabled = true;
-        
-        try {
-            const response = await fetch(`${config.apiUrl}chat/messages?page=${currentPage + 1}`, {
-                headers: {
-                    'X-WP-Nonce': config.nonce
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (data.messages && data.messages.length > 0) {
-                const existingMessages = chatMessages.querySelectorAll('.surf-message');
-                const firstMessage = existingMessages[0];
-                
-                data.messages.forEach(msg => {
-                    const messageEl = createMessageElement(msg);
-                    chatMessages.insertBefore(messageEl, firstMessage);
-                });
-                
-                currentPage++;
-                hasMoreMessages = data.has_more;
-                loadMoreBtn.style.display = hasMoreMessages ? 'block' : 'none';
-            }
-        } catch (error) {
-            console.error('Failed to load more messages:', error);
-        }
-        
-        isLoadingMessages = false;
-        loadMoreBtn.disabled = false;
-    }
     
     /**
      * Render messages
