@@ -520,6 +520,13 @@
         // Show avatar dock
         avatarDock.style.display = 'flex';
         
+        // Add/remove 'multiple' class based on user count
+        if (users.length > 1) {
+            avatarDock.classList.add('multiple');
+        } else {
+            avatarDock.classList.remove('multiple');
+        }
+        
         // Sort users by join time (most recent first for left-to-right display)
         const sortedUsers = users.sort((a, b) => b.lastSeen - a.lastSeen);
         

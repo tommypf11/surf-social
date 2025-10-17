@@ -403,7 +403,7 @@
     height: 45px;
     display: none;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: var(--surf-backdrop-blur);
     border-radius: 22.5px;
@@ -415,6 +415,11 @@
     position: relative;
     padding: 0 8px;
     gap: -5px;
+}
+
+/* When multiple avatars, align to start */
+.surf-avatar-dock.multiple {
+    justify-content: flex-start;
 }
 
 .surf-avatar-dock.hidden {
@@ -522,12 +527,11 @@
 /* Branding */
 .surf-branding {
     position: fixed;
-    bottom: 10px;
+    bottom: -25px;
     right: 20px;
     font-size: 11px;
     color: #95A5A6;
     z-index: 999995;
-    margin-bottom: 0px;
 }
 
 .surf-branding strong {
@@ -557,6 +561,10 @@
         height: 35px;
         border-radius: 17.5px;
         padding: 0 6px;
+    }
+    
+    .surf-avatar-dock.multiple {
+        justify-content: flex-start;
     }
     
     .surf-avatar-chip {
