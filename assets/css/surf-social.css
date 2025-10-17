@@ -104,6 +104,7 @@
     z-index: 999998;
     opacity: 0;
     visibility: hidden;
+    overflow: hidden;
 }
 
 .surf-chat-drawer.open {
@@ -118,9 +119,10 @@
     display: flex;
     padding: 0 16px;
     gap: 2px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
     background: var(--surf-primary);
     backdrop-filter: blur(10px);
+    border-radius: var(--surf-border-radius) var(--surf-border-radius) 0 0;
+    overflow: hidden;
 }
 
 #surf-social-widget .surf-chat-tab {
@@ -132,10 +134,9 @@
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    border-bottom: 3px solid transparent !important;
     transition: var(--surf-transition);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     border-radius: 8px 8px 0 0;
 }
 
@@ -165,22 +166,34 @@
     font-weight: 600;
     position: relative;
     z-index: 10;
-    border-radius: 12px 12px 0 0;
+    border-radius: 16px 16px 0 0;
     transform: translateY(0);
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
+    margin-bottom: -1px;
 }
 
 #surf-social-widget .surf-chat-tab.active::after {
     content: '';
     position: absolute;
-    bottom: -1px;
+    bottom: -20px;
     left: 50%;
     transform: translateX(-50%);
-    width: 20px;
-    height: 10px;
+    width: 40px;
+    height: 20px;
     background: white;
-    border-radius: 0 0 10px 10px;
+    border-radius: 0 0 40px 40px;
     z-index: 11;
+}
+
+#surf-social-widget .surf-chat-tab.active::before {
+    content: '';
+    position: absolute;
+    bottom: -20px;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: white;
+    z-index: 10;
 }
 
 /* Chat Messages */
@@ -261,8 +274,8 @@
 .surf-message-bubble {
     padding: 12px 16px;
     border-radius: 18px;
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 12px;
+    line-height: 1.4;
     word-wrap: break-word;
     position: relative;
     max-width: 280px;
@@ -551,6 +564,8 @@
         padding: 0 12px;
         gap: 2px;
         background: var(--surf-primary);
+        border-radius: var(--surf-border-radius) var(--surf-border-radius) 0 0;
+        overflow: hidden;
     }
     
     .surf-chat-tab {
@@ -558,11 +573,26 @@
         font-size: 15px;
         font-weight: 600;
         color: white !important;
+        overflow: visible;
     }
     
     #surf-social-widget .surf-chat-tab.active {
         background: white !important;
         color: var(--surf-primary) !important;
+        border-radius: 16px 16px 0 0;
+        margin-bottom: -1px;
+    }
+    
+    #surf-social-widget .surf-chat-tab.active::after {
+        bottom: -20px;
+        width: 40px;
+        height: 20px;
+        border-radius: 0 0 40px 40px;
+    }
+    
+    #surf-social-widget .surf-chat-tab.active::before {
+        bottom: -20px;
+        height: 20px;
     }
     
     .surf-chat-header {
