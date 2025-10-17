@@ -748,9 +748,6 @@ if (!defined('ABSPATH')) {
                             </svg>
                             Refresh
                         </button>
-                        <button class="surf-refresh-btn" id="debug-support" style="background: #ff6b6b;">
-                            Debug
-                        </button>
                     </div>
                 </div>
                 
@@ -966,12 +963,6 @@ jQuery(document).ready(function($) {
     loadMessages();
     loadSupportTickets();
     
-    // Debug: Test if support tickets are loading
-    setTimeout(function() {
-        console.log('Current support tickets:', currentSupportTickets);
-        console.log('Support tickets list element:', $('#surf-tickets-list').length);
-        console.log('Support tickets list HTML:', $('#surf-tickets-list').html());
-    }, 2000);
     
     // Initialize default sort indicator
     $(`.surf-sortable[data-sort="${currentSort}"]`).addClass(`surf-sort-${sortDirection}`);
@@ -1265,7 +1256,6 @@ jQuery(document).ready(function($) {
     
     // Support management functions
     function loadSupportTickets() {
-        console.log('Loading support tickets with filter:', supportStatusFilter);
         $.ajax({
             url: '<?php echo admin_url('admin-ajax.php'); ?>',
             type: 'GET',
@@ -1275,7 +1265,6 @@ jQuery(document).ready(function($) {
                 status: supportStatusFilter
             },
             success: function(response) {
-                console.log('Support tickets response:', response);
                 if (response.success) {
                     currentSupportTickets = response.data.tickets;
                     displaySupportTickets();
@@ -1319,13 +1308,11 @@ jQuery(document).ready(function($) {
         // Add click handlers
         $('.surf-ticket-item').on('click', function() {
             const userId = $(this).data('user-id');
-            console.log('Ticket clicked, user ID:', userId);
             selectSupportTicket(userId);
         });
     }
     
     function selectSupportTicket(userId) {
-        console.log('Selecting support ticket for user ID:', userId);
         selectedTicketUserId = userId;
         
         // Update UI
@@ -1337,7 +1324,6 @@ jQuery(document).ready(function($) {
     }
     
     function loadSupportConversation(userId) {
-        console.log('Loading support conversation for user ID:', userId);
         $.ajax({
             url: '<?php echo admin_url('admin-ajax.php'); ?>',
             type: 'GET',
@@ -1347,7 +1333,6 @@ jQuery(document).ready(function($) {
                 user_id: userId
             },
             success: function(response) {
-                console.log('Support conversation response:', response);
                 if (response.success) {
                     displaySupportConversation(response.data.messages, response.data.user_info);
                 } else {
@@ -1361,7 +1346,6 @@ jQuery(document).ready(function($) {
     }
     
     function displaySupportConversation(messages, userInfo) {
-        console.log('Displaying support conversation:', messages, userInfo);
         const conversationMessages = $('#surf-conversation-messages');
         const conversationTitle = $('#conversation-title');
         const conversationInput = $('#surf-conversation-input');
@@ -1499,24 +1483,6 @@ jQuery(document).ready(function($) {
         closeSupportTicket();
     });
     
-    $('#debug-support').on('click', function() {
-        $.ajax({
-            url: '<?php echo admin_url('admin-ajax.php'); ?>',
-            type: 'GET',
-            data: {
-                action: 'surf_social_debug_support',
-                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
-            },
-            success: function(response) {
-                console.log('Debug support data:', response);
-                alert('Debug data logged to console. Check browser console for details.');
-            },
-            error: function(xhr, status, error) {
-                console.error('Debug error:', error, xhr.responseText);
-                alert('Debug error: ' + error);
-            }
-        });
-    });
     
     // Update connection status when settings change
     $('#surf_social_pusher_key, #surf_social_websocket_url, #surf_social_use_pusher').on('change', function() {

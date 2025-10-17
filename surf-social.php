@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.44
+Version: 1.0.45
 Author: Thomas Fraher
 */
 
@@ -63,7 +63,6 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
         add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
         add_action('wp_ajax_surf_social_close_support_ticket', array($this, 'ajax_close_support_ticket'));
-        add_action('wp_ajax_surf_social_debug_support', array($this, 'ajax_debug_support'));
     }
     
     /**
@@ -1089,7 +1088,7 @@ class Surf_Social {
         $table_name = $wpdb->prefix . 'surf_social_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            user_id bigint(20) NOT NULL,
+            user_id varchar(100) NOT NULL,
             user_name varchar(100) NOT NULL,
             message text NOT NULL,
             channel varchar(50) NOT NULL DEFAULT 'web',
@@ -1100,6 +1099,9 @@ class Surf_Social {
             KEY created_at (created_at)
         ) $charset_collate;";
         dbDelta($sql);
+        
+        // Migrate existing tables to use varchar for user_id
+        $this->migrate_user_id_columns();
         
         // Individual messages table
         $table_name = $wpdb->prefix . 'surf_social_individual_messages';
@@ -1123,7 +1125,7 @@ class Surf_Social {
         $table_name = $wpdb->prefix . 'surf_social_support_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            user_id bigint(20) NOT NULL,
+            user_id varchar(100) NOT NULL,
             user_name varchar(100) NOT NULL,
             admin_id bigint(20) NULL,
             admin_name varchar(100) NULL,
@@ -1169,6 +1171,29 @@ class Surf_Social {
      */
     public static function deactivate() {
         // Optional: Clean up if needed
+    }
+    
+    /**
+     * Migrate user_id columns from bigint to varchar
+     */
+    private function migrate_user_id_columns() {
+        global $wpdb;
+        
+        // Check if migration is needed
+        $messages_table = $wpdb->prefix . 'surf_social_messages';
+        $support_table = $wpdb->prefix . 'surf_social_support_messages';
+        
+        // Check if user_id column is still bigint
+        $messages_column = $wpdb->get_row("SHOW COLUMNS FROM $messages_table LIKE 'user_id'");
+        $support_column = $wpdb->get_row("SHOW COLUMNS FROM $support_table LIKE 'user_id'");
+        
+        if ($messages_column && strpos($messages_column->Type, 'bigint') !== false) {
+            $wpdb->query("ALTER TABLE $messages_table MODIFY COLUMN user_id varchar(100) NOT NULL");
+        }
+        
+        if ($support_column && strpos($support_column->Type, 'bigint') !== false) {
+            $wpdb->query("ALTER TABLE $support_table MODIFY COLUMN user_id varchar(100) NOT NULL");
+        }
     }
     
     /**
@@ -1223,9 +1248,8 @@ class Surf_Social {
         
         global $wpdb;
         $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        $user_id = intval($_GET['user_id']);
-        
-        if (!$user_id) {
+        $user_id = $_GET['user_id'];
+        if (empty($user_id)) {
             wp_send_json_error('User ID required');
         }
         
@@ -1266,12 +1290,12 @@ class Surf_Social {
         
         global $wpdb;
         $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        $user_id = intval($_POST['user_id']);
+        $user_id = $_POST['user_id'];
         $message = sanitize_textarea_field($_POST['message']);
         $admin_id = get_current_user_id();
         $admin_name = wp_get_current_user()->display_name;
         
-        if (!$user_id || !$message) {
+        if (empty($user_id) || empty($message)) {
             wp_send_json_error('User ID and message required');
         }
         
@@ -1308,9 +1332,8 @@ class Surf_Social {
         
         global $wpdb;
         $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        $user_id = intval($_POST['user_id']);
-        
-        if (!$user_id) {
+        $user_id = $_POST['user_id'];
+        if (empty($user_id)) {
             wp_send_json_error('User ID required');
         }
         
@@ -1355,33 +1378,6 @@ class Surf_Social {
         }
     }
     
-    /**
-     * Debug support data
-     */
-    public function ajax_debug_support() {
-        check_ajax_referer('surf_social_stats', 'nonce');
-        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
-        
-        global $wpdb;
-        $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$support_table'");
-        $all_messages = $wpdb->get_results("SELECT * FROM $support_table ORDER BY created_at DESC LIMIT 10", ARRAY_A);
-        $ticket_groups = $wpdb->get_results(
-            "SELECT user_id, user_name, COUNT(*) as message_count, MAX(created_at) as last_message 
-             FROM $support_table 
-             GROUP BY user_id, user_name 
-             ORDER BY last_message DESC",
-            ARRAY_A
-        );
-        
-        wp_send_json_success(array(
-            'table_exists' => $table_exists,
-            'all_messages' => $all_messages,
-            'ticket_groups' => $ticket_groups,
-            'table_name' => $support_table
-        ));
-    }
 }
 
 // Initialize plugin
