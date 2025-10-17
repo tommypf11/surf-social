@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.53
+Version: 1.0.54
 Author: Thomas Fraher
 */
 
@@ -975,7 +975,7 @@ class Surf_Social {
             return;
         }
         
-        $channel = 'surf-social-channel';
+        $channel = 'private-surf-social';
         
         // Create the request body
         $body = json_encode(array(
@@ -1421,16 +1421,21 @@ class Surf_Social {
      * Broadcast admin reply to user
      */
     private function broadcast_admin_reply($user_id, $message, $admin_name) {
+        error_log('Broadcasting admin reply - user_id: ' . $user_id . ', message: ' . $message . ', admin_name: ' . $admin_name);
+        
         $pusher_key = get_option('surf_social_pusher_key');
         $websocket_url = get_option('surf_social_websocket_url');
         
         if ($pusher_key) {
+            error_log('Broadcasting via Pusher');
             $this->broadcast_via_pusher('admin-support-reply', array(
                 'user_id' => $user_id,
                 'message' => $message,
                 'admin_name' => $admin_name,
                 'created_at' => current_time('mysql')
             ));
+        } else {
+            error_log('Pusher not configured, skipping broadcast');
         }
         
         if ($websocket_url) {

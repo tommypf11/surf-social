@@ -262,6 +262,7 @@
         channel.bind('new-message', handleNewMessage);
         channel.bind('user-joined', handleUserJoined);
         channel.bind('user-left', handleUserLeft);
+        channel.bind('admin-support-reply', handleAdminSupportReply);
         
         // Broadcast our presence
         broadcastPresence();
