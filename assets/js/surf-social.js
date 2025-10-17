@@ -889,21 +889,26 @@
         const content = document.createElement('div');
         content.className = 'surf-message-content';
         
+        const header = document.createElement('div');
+        header.className = 'surf-message-header';
+        
         const name = document.createElement('div');
         name.className = 'surf-message-name';
         name.textContent = msg.user_name;
-        
-        const bubble = document.createElement('div');
-        bubble.className = 'surf-message-bubble';
-        bubble.textContent = msg.message;
         
         const time = document.createElement('div');
         time.className = 'surf-message-time';
         time.textContent = formatTime(msg.created_at);
         
-        content.appendChild(name);
+        header.appendChild(name);
+        header.appendChild(time);
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'surf-message-bubble';
+        bubble.textContent = msg.message;
+        
+        content.appendChild(header);
         content.appendChild(bubble);
-        content.appendChild(time);
         
         message.appendChild(avatar);
         message.appendChild(content);
@@ -1226,16 +1231,25 @@
         const now = new Date();
         const diff = now - date;
         
-        if (diff < 60000) {
-            return 'just now';
-        } else if (diff < 3600000) {
-            const minutes = Math.floor(diff / 60000);
-            return `${minutes}m ago`;
-        } else {
+        // Show actual time and date instead of relative time
+        const today = new Date();
+        const isToday = date.toDateString() === today.toDateString();
+        
+        if (isToday) {
+            // Show time for today's messages
             return date.toLocaleTimeString('en-US', { 
                 hour: 'numeric', 
                 minute: '2-digit',
                 hour12: true 
+            });
+        } else {
+            // Show date for older messages
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
             });
         }
     }
