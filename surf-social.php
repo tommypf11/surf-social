@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.54
+Version: 1.0.55
 Author: Thomas Fraher
 */
 
@@ -82,27 +82,106 @@ class Surf_Social {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();
         
-        // Check if guests table exists
-        $guests_table = $wpdb->prefix . 'surf_social_guests';
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$guests_table'");
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
-        if (!$table_exists) {
-            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        // Check and create all tables
+        $tables_to_check = array(
+            'surf_social_messages',
+            'surf_social_individual_messages', 
+            'surf_social_support_messages',
+            'surf_social_guests'
+        );
+        
+        foreach ($tables_to_check as $table_name) {
+            $full_table_name = $wpdb->prefix . $table_name;
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$full_table_name'");
             
-            $sql = "CREATE TABLE IF NOT EXISTS $guests_table (
-                id bigint(20) NOT NULL AUTO_INCREMENT,
-                user_id varchar(100) NOT NULL,
-                name varchar(100) NOT NULL,
-                email varchar(255) NOT NULL,
-                created_at datetime DEFAULT CURRENT_TIMESTAMP,
-                updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY  (id),
-                UNIQUE KEY user_id (user_id),
-                KEY email (email),
-                KEY created_at (created_at)
-            ) $charset_collate;";
-            dbDelta($sql);
+            if (!$table_exists) {
+                $this->create_table($table_name, $charset_collate);
+            }
         }
+    }
+    
+    /**
+     * Create a specific table
+     */
+    private function create_table($table_name, $charset_collate) {
+        global $wpdb;
+        
+        $full_table_name = $wpdb->prefix . $table_name;
+        
+        switch ($table_name) {
+            case 'surf_social_messages':
+                $sql = "CREATE TABLE IF NOT EXISTS $full_table_name (
+                    id bigint(20) NOT NULL AUTO_INCREMENT,
+                    user_id varchar(100) NOT NULL,
+                    user_name varchar(100) NOT NULL,
+                    message text NOT NULL,
+                    channel varchar(50) NOT NULL DEFAULT 'web',
+                    created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY  (id),
+                    KEY user_id (user_id),
+                    KEY channel (channel),
+                    KEY created_at (created_at)
+                ) $charset_collate;";
+                break;
+                
+            case 'surf_social_individual_messages':
+                $sql = "CREATE TABLE IF NOT EXISTS $full_table_name (
+                    id bigint(20) NOT NULL AUTO_INCREMENT,
+                    sender_id varchar(100) NOT NULL,
+                    sender_name varchar(100) NOT NULL,
+                    recipient_id varchar(100) NOT NULL,
+                    recipient_name varchar(100) NOT NULL,
+                    message text NOT NULL,
+                    created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                    read_at datetime NULL,
+                    PRIMARY KEY  (id),
+                    KEY sender_id (sender_id),
+                    KEY recipient_id (recipient_id),
+                    KEY created_at (created_at)
+                ) $charset_collate;";
+                break;
+                
+            case 'surf_social_support_messages':
+                $sql = "CREATE TABLE IF NOT EXISTS $full_table_name (
+                    id bigint(20) NOT NULL AUTO_INCREMENT,
+                    user_id varchar(100) NOT NULL,
+                    user_name varchar(100) NOT NULL,
+                    admin_id bigint(20) NULL,
+                    admin_name varchar(100) NULL,
+                    message text NOT NULL,
+                    message_type enum('user', 'admin') DEFAULT 'user',
+                    status enum('open', 'closed', 'resolved') DEFAULT 'open',
+                    created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY  (id),
+                    KEY user_id (user_id),
+                    KEY admin_id (admin_id),
+                    KEY status (status),
+                    KEY created_at (created_at)
+                ) $charset_collate;";
+                break;
+                
+            case 'surf_social_guests':
+                $sql = "CREATE TABLE IF NOT EXISTS $full_table_name (
+                    id bigint(20) NOT NULL AUTO_INCREMENT,
+                    user_id varchar(100) NOT NULL,
+                    name varchar(100) NOT NULL,
+                    email varchar(255) NOT NULL,
+                    created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                    updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY  (id),
+                    UNIQUE KEY user_id (user_id),
+                    KEY email (email),
+                    KEY created_at (created_at)
+                ) $charset_collate;";
+                break;
+                
+            default:
+                return; // Unknown table
+        }
+        
+        dbDelta($sql);
     }
     
     /**
@@ -1153,15 +1232,15 @@ class Surf_Social {
         dbDelta($sql);
         
         // Migrate existing tables to use varchar for user_id
-        $this->migrate_user_id_columns();
+        self::migrate_user_id_columns();
         
         // Individual messages table
         $table_name = $wpdb->prefix . 'surf_social_individual_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            sender_id bigint(20) NOT NULL,
+            sender_id varchar(100) NOT NULL,
             sender_name varchar(100) NOT NULL,
-            recipient_id bigint(20) NOT NULL,
+            recipient_id varchar(100) NOT NULL,
             recipient_name varchar(100) NOT NULL,
             message text NOT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -1228,7 +1307,7 @@ class Surf_Social {
     /**
      * Migrate user_id columns from bigint to varchar
      */
-    private function migrate_user_id_columns() {
+    private static function migrate_user_id_columns() {
         global $wpdb;
         
         $tables = array(
