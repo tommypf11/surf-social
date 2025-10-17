@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.10
+Version: 1.0.11
 Author: Thomas Fraher
 */
 
@@ -72,11 +72,11 @@ class Surf_Social {
             return;
         }
         
-        // Enqueue styles
+        // Enqueue styles - load after theme to prevent overrides
         wp_enqueue_style(
             'surf-social-style',
             SURF_SOCIAL_PLUGIN_URL . 'assets/css/surf-social.css',
-            array(),
+            array('wp-block-library', 'theme-style', 'style'),
             SURF_SOCIAL_VERSION
         );
         
