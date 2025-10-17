@@ -156,69 +156,6 @@
     overflow: visible;
 }
 
-#surf-social-widget .surf-chat-tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: -10px;
-    right: -10px;
-    height: 20px;
-    background: white;
-    clip-path: polygon(
-        0% 0%, 
-        100% 0%, 
-        100% 50%, 
-        95% 60%, 
-        90% 70%, 
-        85% 80%, 
-        80% 90%, 
-        75% 95%, 
-        70% 100%, 
-        60% 100%, 
-        50% 100%, 
-        40% 100%, 
-        30% 100%, 
-        25% 95%, 
-        20% 90%, 
-        15% 80%, 
-        10% 70%, 
-        5% 60%, 
-        0% 50%
-    );
-    z-index: 1000002;
-}
-
-#surf-social-widget .surf-chat-tab.active::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: -10px;
-    right: -10px;
-    height: 20px;
-    background: white;
-    clip-path: polygon(
-        0% 0%, 
-        100% 0%, 
-        100% 50%, 
-        95% 60%, 
-        90% 70%, 
-        85% 80%, 
-        80% 90%, 
-        75% 95%, 
-        70% 100%, 
-        60% 100%, 
-        50% 100%, 
-        40% 100%, 
-        30% 100%, 
-        25% 95%, 
-        20% 90%, 
-        15% 80%, 
-        10% 70%, 
-        5% 60%, 
-        0% 50%
-    );
-    z-index: 1000001;
-}
 
 /* Chat Messages */
 .surf-chat-messages {
@@ -627,63 +564,6 @@
         overflow: visible;
     }
     
-    #surf-social-widget .surf-chat-tab.active::after {
-        bottom: 0;
-        left: -10px;
-        right: -10px;
-        height: 20px;
-        clip-path: polygon(
-            0% 0%, 
-            100% 0%, 
-            100% 50%, 
-            95% 60%, 
-            90% 70%, 
-            85% 80%, 
-            80% 90%, 
-            75% 95%, 
-            70% 100%, 
-            60% 100%, 
-            50% 100%, 
-            40% 100%, 
-            30% 100%, 
-            25% 95%, 
-            20% 90%, 
-            15% 80%, 
-            10% 70%, 
-            5% 60%, 
-            0% 50%
-        );
-        z-index: 1000002;
-    }
-    
-    #surf-social-widget .surf-chat-tab.active::before {
-        bottom: 0;
-        left: -10px;
-        right: -10px;
-        height: 20px;
-        clip-path: polygon(
-            0% 0%, 
-            100% 0%, 
-            100% 50%, 
-            95% 60%, 
-            90% 70%, 
-            85% 80%, 
-            80% 90%, 
-            75% 95%, 
-            70% 100%, 
-            60% 100%, 
-            50% 100%, 
-            40% 100%, 
-            30% 100%, 
-            25% 95%, 
-            20% 90%, 
-            15% 80%, 
-            10% 70%, 
-            5% 60%, 
-            0% 50%
-        );
-        z-index: 1000001;
-    }
     
     .surf-chat-header {
         padding: 20px 16px 16px;
