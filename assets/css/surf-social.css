@@ -40,7 +40,7 @@
 }
 
 /* Chat Toggle Button */
-.surf-chat-toggle {
+#surf-social-widget .surf-chat-toggle {
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -172,16 +172,16 @@
     backdrop-filter: blur(10px);
 }
 
-.surf-chat-tab {
+#surf-social-widget .surf-chat-tab {
     flex: 1;
     padding: 14px 8px;
-    background: transparent;
-    border: none;
-    color: var(--surf-text-muted);
+    background: transparent !important;
+    border: none !important;
+    color: var(--surf-text-muted) !important;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    border-bottom: 3px solid transparent;
+    border-bottom: 3px solid transparent !important;
     transition: var(--surf-transition);
     position: relative;
     overflow: hidden;
@@ -199,19 +199,19 @@
     transition: left 0.5s ease;
 }
 
-.surf-chat-tab:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--surf-text);
+#surf-social-widget .surf-chat-tab:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--surf-text) !important;
 }
 
 .surf-chat-tab:hover::before {
     left: 100%;
 }
 
-.surf-chat-tab.active {
-    background: rgba(15, 52, 96, 0.3);
-    border-bottom-color: var(--surf-accent);
-    color: var(--surf-text);
+#surf-social-widget .surf-chat-tab.active {
+    background: rgba(15, 52, 96, 0.3) !important;
+    border-bottom-color: var(--surf-accent) !important;
+    color: var(--surf-text) !important;
     font-weight: 600;
     box-shadow: 0 2px 12px rgba(15, 52, 96, 0.3);
     transform: translateY(-1px);
@@ -325,20 +325,20 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.surf-chat-load-more {
+#surf-social-widget .surf-chat-load-more {
     width: 100%;
     padding: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 6px;
-    color: var(--surf-text);
+    color: var(--surf-text) !important;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.surf-chat-load-more:hover {
-    background: rgba(255, 255, 255, 0.1);
+#surf-social-widget .surf-chat-load-more:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .surf-chat-load-more:disabled {
@@ -355,8 +355,8 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.surf-chat-attach,
-.surf-chat-send {
+#surf-social-widget .surf-chat-attach,
+#surf-social-widget .surf-chat-send {
     background: white !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
     color: black !important;
@@ -369,8 +369,8 @@
     justify-content: center;
 }
 
-.surf-chat-attach:hover,
-.surf-chat-send:hover {
+#surf-social-widget .surf-chat-attach:hover,
+#surf-social-widget .surf-chat-send:hover {
     background: rgba(0, 0, 0, 0.1) !important;
     color: black !important;
 }
