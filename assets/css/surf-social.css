@@ -122,7 +122,9 @@
     background: var(--surf-primary);
     backdrop-filter: blur(10px);
     border-radius: var(--surf-border-radius) var(--surf-border-radius) 0 0;
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
+    z-index: 1000000;
 }
 
 #surf-social-widget .surf-chat-tab {
@@ -146,7 +148,7 @@
     color: var(--surf-primary) !important;
     font-weight: 600;
     position: relative;
-    z-index: 10;
+    z-index: 1000001;
     border-radius: 12px 12px 0 0;
     transform: translateY(5px);
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
@@ -163,7 +165,7 @@
     height: 12px;
     background: white;
     border-radius: 0 0 12px 12px;
-    z-index: 11;
+    z-index: 1000002;
 }
 
 #surf-social-widget .surf-chat-tab.active::before {
@@ -174,7 +176,7 @@
     right: 0;
     height: 12px;
     background: white;
-    z-index: 10;
+    z-index: 1000001;
     border-radius: 0 0 12px 12px;
 }
 
@@ -560,7 +562,9 @@
         gap: 0;
         background: var(--surf-primary);
         border-radius: var(--surf-border-radius) var(--surf-border-radius) 0 0;
-        overflow: hidden;
+        overflow: visible;
+        position: relative;
+        z-index: 1000000;
     }
     
     .surf-chat-tab {
@@ -580,6 +584,7 @@
         margin-bottom: -1px;
         margin-top: 5px;
         transform: translateY(5px);
+        z-index: 1000001;
     }
     
     #surf-social-widget .surf-chat-tab.active::after {
@@ -588,12 +593,14 @@
         right: 0;
         height: 12px;
         border-radius: 0 0 12px 12px;
+        z-index: 1000002;
     }
     
     #surf-social-widget .surf-chat-tab.active::before {
         bottom: -12px;
         height: 12px;
         border-radius: 0 0 12px 12px;
+        z-index: 1000001;
     }
     
     .surf-chat-header {
