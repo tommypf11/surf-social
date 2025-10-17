@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.48
+Version: 1.0.49
 Author: Thomas Fraher
 */
 
@@ -532,8 +532,8 @@ class Surf_Social {
         $messages = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT * FROM $table_name 
-                WHERE (sender_id = %d AND recipient_id = %d) 
-                OR (sender_id = %d AND recipient_id = %d)
+                WHERE (sender_id = %s AND recipient_id = %s) 
+                OR (sender_id = %s AND recipient_id = %s)
                 ORDER BY created_at DESC LIMIT %d OFFSET %d",
                 $user_id, $target_user_id, $target_user_id, $user_id, $per_page, $offset
             ),
@@ -605,20 +605,20 @@ class Surf_Social {
             $wpdb->prepare(
                 "SELECT 
                     CASE 
-                        WHEN sender_id = %d THEN recipient_id 
+                        WHEN sender_id = %s THEN recipient_id 
                         ELSE sender_id 
                     END as other_user_id,
                     CASE 
-                        WHEN sender_id = %d THEN recipient_name 
+                        WHEN sender_id = %s THEN recipient_name 
                         ELSE sender_name 
                     END as other_user_name,
                     MAX(created_at) as last_message_time,
                     (SELECT message FROM $table_name 
-                     WHERE ((sender_id = %d AND recipient_id = other_user_id) 
-                            OR (sender_id = other_user_id AND recipient_id = %d))
+                     WHERE ((sender_id = %s AND recipient_id = other_user_id) 
+                            OR (sender_id = other_user_id AND recipient_id = %s))
                      ORDER BY created_at DESC LIMIT 1) as last_message
                 FROM $table_name 
-                WHERE sender_id = %d OR recipient_id = %d
+                WHERE sender_id = %s OR recipient_id = %s
                 GROUP BY other_user_id, other_user_name
                 ORDER BY last_message_time DESC",
                 $user_id, $user_id, $user_id, $user_id, $user_id, $user_id
@@ -648,7 +648,7 @@ class Surf_Social {
         $messages = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT * FROM $table_name 
-                WHERE user_id = %d 
+                WHERE user_id = %s 
                 ORDER BY created_at DESC LIMIT %d OFFSET %d",
                 $user_id, $per_page, $offset
             ),
