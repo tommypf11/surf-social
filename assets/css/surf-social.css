@@ -148,9 +148,10 @@
     position: relative;
     z-index: 10;
     border-radius: 12px 12px 0 0;
-    transform: translateY(0);
+    transform: translateY(5px);
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: -1px;
+    margin-top: 5px;
 }
 
 #surf-social-widget .surf-chat-tab.active::after {
@@ -578,6 +579,8 @@
         color: var(--surf-primary) !important;
         border-radius: 12px 12px 0 0;
         margin-bottom: -1px;
+        margin-top: 5px;
+        transform: translateY(5px);
     }
     
     #surf-social-widget .surf-chat-tab.active::after {
