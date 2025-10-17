@@ -401,7 +401,7 @@
 .surf-avatar-dock {
     width: 45px;
     height: 45px;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     background: rgba(255, 255, 255, 0.95);

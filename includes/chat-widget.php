@@ -57,8 +57,8 @@ if (!defined('ABSPATH')) {
     <!-- Bottom Widget Bar -->
     <div class="surf-widget-bar">
         <!-- Avatar Chips Dock -->
-        <div class="surf-avatar-dock" id="surf-avatar-dock">
-            <div class="surf-avatar-chip surf-avatar-more">+5</div>
+        <div class="surf-avatar-dock" id="surf-avatar-dock" style="display: none;">
+            <div class="surf-avatar-chip surf-avatar-more"></div>
             <!-- Avatar chips will be dynamically added here -->
         </div>
         

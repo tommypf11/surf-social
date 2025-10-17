@@ -51,6 +51,9 @@
         initRealtime();
         loadInitialMessages();
         startCursorTracking();
+        
+        // Initialize avatar dock state
+        updateAvatarDock();
     }
     
     /**
