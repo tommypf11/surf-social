@@ -748,6 +748,9 @@ if (!defined('ABSPATH')) {
                             </svg>
                             Refresh
                         </button>
+                        <button class="surf-refresh-btn" id="debug-database" style="background: #ff6b6b; color: white;">
+                            Debug DB
+                        </button>
                     </div>
                 </div>
                 
@@ -1458,6 +1461,96 @@ jQuery(document).ready(function($) {
         return date.toLocaleDateString();
     }
     
+    function debugDatabase() {
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'GET',
+            data: {
+                action: 'surf_social_debug_database',
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
+            },
+            success: function(response) {
+                if (response.success) {
+                    displayDebugInfo(response.data);
+                } else {
+                    alert('Debug failed: ' + response.data);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Debug error:', error, xhr.responseText);
+                alert('Debug error: ' + error);
+            }
+        });
+    }
+    
+    function displayDebugInfo(debugData) {
+        let html = '<div style="background: #f0f0f0; padding: 20px; margin: 20px 0; border-radius: 8px; font-family: monospace; font-size: 12px;">';
+        html += '<h3 style="margin-top: 0; color: #333;">Database Debug Information</h3>';
+        
+        Object.keys(debugData).forEach(tableName => {
+            const table = debugData[tableName];
+            html += `<div style="margin-bottom: 20px; border: 1px solid #ccc; padding: 15px; border-radius: 5px;">`;
+            html += `<h4 style="margin-top: 0; color: #666;">Table: ${tableName}</h4>`;
+            
+            if (!table.exists) {
+                html += '<p style="color: red;">Table does not exist</p>';
+            } else {
+                // Column info
+                if (table.user_id_column) {
+                    html += `<p><strong>user_id column type:</strong> ${table.user_id_column.Type}</p>`;
+                }
+                html += `<p><strong>Total messages:</strong> ${table.total_messages}</p>`;
+                
+                // Unique users
+                html += '<h5>Unique Users:</h5>';
+                if (table.unique_users && table.unique_users.length > 0) {
+                    html += '<ul>';
+                    table.unique_users.forEach(user => {
+                        html += `<li>ID: "${user.user_id}" | Name: "${user.user_name}" | Messages: ${user.message_count}</li>`;
+                    });
+                    html += '</ul>';
+                } else {
+                    html += '<p>No users found</p>';
+                }
+                
+                // Sample data
+                html += '<h5>Recent Messages:</h5>';
+                if (table.sample_data && table.sample_data.length > 0) {
+                    html += '<ul>';
+                    table.sample_data.forEach(msg => {
+                        html += `<li>ID: "${msg.user_id}" | Name: "${msg.user_name}" | Message: "${msg.message}" | Time: ${msg.created_at}</li>`;
+                    });
+                    html += '</ul>';
+                } else {
+                    html += '<p>No messages found</p>';
+                }
+            }
+            
+            html += '</div>';
+        });
+        
+        html += '</div>';
+        
+        // Create modal or display in console
+        const modal = $(`
+            <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; overflow-y: auto;">
+                <div style="background: white; margin: 20px; padding: 20px; border-radius: 8px; max-height: 80vh; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>Database Debug Information</h2>
+                        <button id="close-debug-modal" style="background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Close</button>
+                    </div>
+                    ${html}
+                </div>
+            </div>
+        `);
+        
+        $('body').append(modal);
+        
+        $('#close-debug-modal').on('click', function() {
+            modal.remove();
+        });
+    }
+    
     // Support management event handlers
     $('#refresh-support-tickets').on('click', function() {
         loadSupportTickets();
@@ -1481,6 +1574,11 @@ jQuery(document).ready(function($) {
     
     $('#close-ticket-btn').on('click', function() {
         closeSupportTicket();
+    });
+    
+    // Debug database button
+    $('#debug-database').on('click', function() {
+        debugDatabase();
     });
     
     

@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.49
+Version: 1.0.50
 Author: Thomas Fraher
 */
 
@@ -63,6 +63,7 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
         add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
         add_action('wp_ajax_surf_social_close_support_ticket', array($this, 'ajax_close_support_ticket'));
+        add_action('wp_ajax_surf_social_debug_database', array($this, 'ajax_debug_database'));
     }
     
     /**
@@ -1378,6 +1379,66 @@ class Surf_Social {
                 'created_at' => current_time('mysql')
             ));
         }
+    }
+    
+    /**
+     * AJAX handler for debugging database state
+     */
+    public function ajax_debug_database() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
+        
+        global $wpdb;
+        
+        $debug_info = array();
+        
+        // Check table schemas
+        $tables = array(
+            'surf_social_messages',
+            'surf_social_individual_messages', 
+            'surf_social_support_messages'
+        );
+        
+        foreach ($tables as $table) {
+            $table_name = $wpdb->prefix . $table;
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+            
+            if ($table_exists) {
+                // Get column info
+                $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name", ARRAY_A);
+                $user_id_column = null;
+                foreach ($columns as $column) {
+                    if ($column['Field'] === 'user_id') {
+                        $user_id_column = $column;
+                        break;
+                    }
+                }
+                
+                // Get sample data
+                $sample_data = $wpdb->get_results(
+                    "SELECT user_id, user_name, message, created_at FROM $table_name ORDER BY created_at DESC LIMIT 5",
+                    ARRAY_A
+                );
+                
+                // Get unique user_ids
+                $unique_users = $wpdb->get_results(
+                    "SELECT user_id, user_name, COUNT(*) as message_count FROM $table_name GROUP BY user_id, user_name ORDER BY message_count DESC",
+                    ARRAY_A
+                );
+                
+                $debug_info[$table] = array(
+                    'exists' => true,
+                    'user_id_column' => $user_id_column,
+                    'sample_data' => $sample_data,
+                    'unique_users' => $unique_users,
+                    'total_messages' => $wpdb->get_var("SELECT COUNT(*) FROM $table_name")
+                );
+            } else {
+                $debug_info[$table] = array('exists' => false);
+            }
+        }
+        
+        wp_send_json_success($debug_info);
     }
     
     
