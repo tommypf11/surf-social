@@ -492,25 +492,37 @@
     font-weight: 500;
 }
 
-/* Guest Registration Input Validation */
-.surf-name-input.valid, .surf-email-input.valid {
-    border-color: #10B981;
-    color: #10B981;
+/* Guest Registration Input Validation with high specificity */
+#surf-social-widget .surf-name-input.valid, 
+#surf-social-widget .surf-email-input.valid,
+.surf-guest-registration .surf-name-input.valid,
+.surf-guest-registration .surf-email-input.valid {
+    border-color: #10B981 !important;
+    color: #10B981 !important;
 }
 
-.surf-name-input.invalid, .surf-email-input.invalid {
-    border-color: #EF4444;
-    color: #EF4444;
+#surf-social-widget .surf-name-input.invalid, 
+#surf-social-widget .surf-email-input.invalid,
+.surf-guest-registration .surf-name-input.invalid,
+.surf-guest-registration .surf-email-input.invalid {
+    border-color: #EF4444 !important;
+    color: #EF4444 !important;
 }
 
-.surf-name-input.valid::placeholder, .surf-email-input.valid::placeholder {
-    color: #10B981;
-    font-weight: 500;
+#surf-social-widget .surf-name-input.valid::placeholder, 
+#surf-social-widget .surf-email-input.valid::placeholder,
+.surf-guest-registration .surf-name-input.valid::placeholder,
+.surf-guest-registration .surf-email-input.valid::placeholder {
+    color: #10B981 !important;
+    font-weight: 500 !important;
 }
 
-.surf-name-input.invalid::placeholder, .surf-email-input.invalid::placeholder {
-    color: #EF4444;
-    font-weight: 500;
+#surf-social-widget .surf-name-input.invalid::placeholder, 
+#surf-social-widget .surf-email-input.invalid::placeholder,
+.surf-guest-registration .surf-name-input.invalid::placeholder,
+.surf-guest-registration .surf-email-input.invalid::placeholder {
+    color: #EF4444 !important;
+    font-weight: 500 !important;
 }
 
 /* Form transition animations */

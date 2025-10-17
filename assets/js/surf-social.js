@@ -89,10 +89,35 @@
             nameInput.addEventListener('input', (e) => {
                 validateGuestInputs();
             });
+            nameInput.addEventListener('keyup', (e) => {
+                validateGuestInputs();
+            });
+            nameInput.addEventListener('paste', (e) => {
+                setTimeout(() => validateGuestInputs(), 10);
+            });
         }
         
         if (emailInput) {
             emailInput.addEventListener('input', (e) => {
+                validateGuestInputs();
+            });
+            emailInput.addEventListener('keyup', (e) => {
+                validateGuestInputs();
+            });
+            emailInput.addEventListener('paste', (e) => {
+                setTimeout(() => validateGuestInputs(), 10);
+            });
+            emailInput.addEventListener('blur', (e) => {
+                validateGuestInputs();
+            });
+            emailInput.addEventListener('focus', (e) => {
+                validateGuestInputs();
+            });
+        }
+        
+        // Add focus event to name input as well
+        if (nameInput) {
+            nameInput.addEventListener('focus', (e) => {
                 validateGuestInputs();
             });
         }
@@ -1359,9 +1384,13 @@
         const nameValid = validateName(name);
         const emailValid = validateEmail(email);
         
-        // Update input styling
-        updateInputValidation(nameInput, nameValid, name);
-        updateInputValidation(emailInput, emailValid, email);
+        // Update input styling immediately
+        if (nameInput) {
+            updateInputValidation(nameInput, nameValid, name);
+        }
+        if (emailInput) {
+            updateInputValidation(emailInput, emailValid, email);
+        }
         
         // Update join button state
         if (joinButton) {
@@ -1401,10 +1430,23 @@
         if (value.length > 0) {
             if (isValid) {
                 input.classList.add('valid');
+                // Force immediate style update
+                input.style.borderColor = '#10B981';
+                input.style.color = '#10B981';
             } else {
                 input.classList.add('invalid');
+                // Force immediate style update
+                input.style.borderColor = '#EF4444';
+                input.style.color = '#EF4444';
             }
+        } else {
+            // Reset to default styles
+            input.style.borderColor = '';
+            input.style.color = '';
         }
+        
+        // Force a reflow to ensure styles are applied
+        input.offsetHeight;
     }
     
     /**
