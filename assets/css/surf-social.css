@@ -185,7 +185,7 @@
     gap: 12px;
     animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     margin-bottom: 16px;
-    align-items: center;
+    align-items: flex-start;
 }
 
 @keyframes slideInUp {
@@ -219,20 +219,23 @@
 .surf-message-content {
     max-width: 70%;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     gap: 8px;
     flex: 1;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .surf-message.own .surf-message-content {
-    flex-direction: row-reverse;
+    align-items: flex-end;
 }
 
 .surf-message-header {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
+    min-height: 60px;
+    justify-content: center;
 }
 
 .surf-message-name {

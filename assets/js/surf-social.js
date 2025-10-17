@@ -903,26 +903,31 @@
             message.classList.add('own');
         }
         
+        const header = document.createElement('div');
+        header.className = 'surf-message-header';
+        
         const avatar = document.createElement('div');
         avatar.className = 'surf-message-avatar';
         avatar.style.backgroundColor = msg.user_color || colors[msg.user_id % colors.length];
         avatar.textContent = msg.user_name.charAt(0).toUpperCase();
         
-        const content = document.createElement('div');
-        content.className = 'surf-message-content';
-        
         const name = document.createElement('div');
         name.className = 'surf-message-name';
         name.textContent = msg.user_name;
+        
+        header.appendChild(avatar);
+        header.appendChild(name);
+        
+        const content = document.createElement('div');
+        content.className = 'surf-message-content';
         
         const bubble = document.createElement('div');
         bubble.className = 'surf-message-bubble';
         bubble.textContent = msg.message;
         
-        content.appendChild(name);
         content.appendChild(bubble);
         
-        message.appendChild(avatar);
+        message.appendChild(header);
         message.appendChild(content);
         
         return message;
