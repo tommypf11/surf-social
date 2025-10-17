@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
         </div>
         
         <div class="surf-chat-input-container">
-            <input type="text" class="surf-chat-input" placeholder="" id="surf-chat-input">
+            <input type="text" class="surf-chat-input" placeholder="Type a message..." id="surf-chat-input">
             <button class="surf-chat-send" aria-label="Send message">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -55,7 +55,7 @@ if (!defined('ABSPATH')) {
     
     <!-- Branding -->
     <div class="surf-branding">
-        Powered by <strong>Surf Social</strong>
+        Powered by <strong><a href="https://surfsocial.com" target="_blank" rel="noopener noreferrer">Surf Social</a></strong>
     </div>
 </div>
 

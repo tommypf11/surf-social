@@ -25,6 +25,8 @@
     let currentChatUser = null;
     let individualChats = new Map(); // Store individual chat messages
     let adminUser = { id: 'admin', name: 'Admin', color: '#E74C3C' };
+    let hasSetGuestName = false; // Track if guest has set their name
+    let isFirstMessage = true; // Track if this is the first message attempt
     
     // DOM Elements
     const chatDrawer = document.getElementById('surf-chat-drawer');
@@ -52,6 +54,9 @@
         
         // Initialize avatar dock state
         updateAvatarDock();
+        
+        // Initialize guest name input if user is guest
+        initGuestNameInput();
     }
     
     /**
@@ -69,6 +74,13 @@
             }
         });
         chatSend.addEventListener('click', sendMessage);
+        
+        // Add input validation for guest name
+        chatInput.addEventListener('input', (e) => {
+            if (config.currentUser.isGuest && !hasSetGuestName) {
+                validateGuestNameInput(e.target.value);
+            }
+        });
         
         // Tab switching
         chatTabs.forEach(tab => {
@@ -982,6 +994,12 @@
         
         if (!message) return;
         
+        // Check if this is a guest trying to set their name
+        if (config.currentUser.isGuest && !hasSetGuestName && isLikelyName(message)) {
+            await setGuestName(message);
+            return;
+        }
+        
         chatInput.disabled = true;
         chatSend.disabled = true;
         
@@ -1004,6 +1022,7 @@
             }
             
             chatInput.value = '';
+            isFirstMessage = false;
             
             // Add message to current view immediately
             const messageEl = createMessageElement(msg);
@@ -1264,6 +1283,154 @@
             unreadBadge.style.display = 'flex';
         } else {
             unreadBadge.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Initialize guest name input
+     */
+    function initGuestNameInput() {
+        if (config.currentUser.isGuest && !hasSetGuestName) {
+            chatInput.placeholder = 'Choose a Name to join the chat';
+            chatInput.maxLength = 20;
+        }
+    }
+    
+    /**
+     * Check if input looks like a name
+     */
+    function isLikelyName(text) {
+        return text.length <= 20 && 
+               text.length >= 2 && 
+               !text.includes(' ') && 
+               /^[a-zA-Z]+$/.test(text) &&
+               isFirstMessage;
+    }
+    
+    /**
+     * Validate guest name input
+     */
+    function validateGuestNameInput(text) {
+        const isValid = isLikelyName(text);
+        
+        // Add validating class for smooth transitions
+        chatInput.classList.add('validating');
+        
+        // Update input styling based on validation
+        if (text.length > 0) {
+            if (isValid) {
+                chatInput.style.borderColor = '#10B981';
+                chatInput.style.color = '#10B981';
+                chatInput.placeholder = 'Press Enter to join as ' + text;
+            } else {
+                chatInput.style.borderColor = '#EF4444';
+                chatInput.style.color = '#EF4444';
+                if (text.length < 2) {
+                    chatInput.placeholder = 'Name must be at least 2 characters';
+                } else if (text.includes(' ')) {
+                    chatInput.placeholder = 'No spaces allowed in name';
+                } else if (!/^[a-zA-Z]+$/.test(text)) {
+                    chatInput.placeholder = 'Only letters allowed';
+                } else {
+                    chatInput.placeholder = 'Name too long (max 20 characters)';
+                }
+            }
+        } else {
+            chatInput.style.borderColor = '';
+            chatInput.style.color = '';
+            chatInput.placeholder = 'Choose a Name to join the chat';
+        }
+        
+        // Remove validating class after transition
+        setTimeout(() => {
+            chatInput.classList.remove('validating');
+        }, 200);
+    }
+    
+    /**
+     * Set guest name
+     */
+    async function setGuestName(name) {
+        try {
+            // Show success animation
+            showNameSuccessAnimation();
+            
+            // Update user name
+            config.currentUser.name = name;
+            hasSetGuestName = true;
+            
+            // Update cursor name immediately
+            updateCurrentUserCursor();
+            
+            // Update avatar dock
+            updateAvatarDock();
+            
+            // Clear input and update placeholder
+            chatInput.value = '';
+            chatInput.placeholder = 'Type a message...';
+            chatInput.maxLength = 1000; // Reset to normal message length
+            chatInput.style.borderColor = '';
+            chatInput.style.color = '';
+            chatInput.classList.remove('validating');
+            
+            // Broadcast updated presence
+            broadcastPresence();
+            
+            // Focus input for next message
+            setTimeout(() => {
+                chatInput.focus();
+            }, 500);
+            
+        } catch (error) {
+            console.error('Failed to set guest name:', error);
+        }
+    }
+    
+    /**
+     * Show success animation
+     */
+    function showNameSuccessAnimation() {
+        const successIcon = document.createElement('div');
+        successIcon.className = 'surf-name-success';
+        successIcon.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" 
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        
+        // Position the success icon over the input
+        const inputContainer = chatInput.parentElement;
+        inputContainer.style.position = 'relative';
+        inputContainer.appendChild(successIcon);
+        
+        // Animate in
+        setTimeout(() => {
+            successIcon.classList.add('show');
+        }, 10);
+        
+        // Remove after animation
+        setTimeout(() => {
+            successIcon.classList.add('hide');
+            setTimeout(() => {
+                if (successIcon.parentElement) {
+                    successIcon.parentElement.removeChild(successIcon);
+                }
+            }, 300);
+        }, 1500);
+    }
+    
+    /**
+     * Update current user cursor (for when name changes)
+     */
+    function updateCurrentUserCursor() {
+        // Find and update existing cursor if it exists
+        const existingCursor = currentUsers.get(config.currentUser.id);
+        if (existingCursor && existingCursor.element) {
+            const namePill = existingCursor.element.querySelector('.surf-cursor-name');
+            if (namePill) {
+                namePill.textContent = config.currentUser.name;
+            }
         }
     }
     

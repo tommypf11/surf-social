@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.32
+Version: 1.0.33
 Author: Thomas Fraher
 */
 
@@ -97,17 +97,23 @@ class Surf_Social {
         if (!$user_id) {
             $user_id = 'guest_' . wp_generate_password(8, false);
             $user_name = 'Guest ' . substr($user_id, -4);
+            $is_guest = true;
         } else {
             $user_name = $current_user->display_name ?: $current_user->user_login;
+            $is_guest = false;
         }
         
         // Ensure we always have a user ID and name
         if (empty($user_id)) {
             $user_id = 'guest_' . uniqid();
             $user_name = 'Guest User';
+            $is_guest = true;
         }
         if (empty($user_name)) {
             $user_name = 'Guest User';
+        }
+        if (!isset($is_guest)) {
+            $is_guest = false;
         }
         
         // Debug logging
@@ -136,7 +142,7 @@ class Surf_Social {
                 'name' => $user_name,
                 'avatar' => $avatar_url,
                 'color' => $this->get_user_color($user_id),
-                'isGuest' => !get_current_user_id()
+                'isGuest' => $is_guest
             ),
             'apiUrl' => rest_url('surf-social/v1/'),
             'nonce' => wp_create_nonce('wp_rest')
