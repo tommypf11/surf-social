@@ -153,6 +153,19 @@
     transform: translateY(5px);
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     margin-top: 5px;
+    clip-path: polygon(
+        0% 0%, 
+        100% 0%, 
+        100% 70%, 
+        95% 80%, 
+        85% 85%, 
+        75% 90%, 
+        50% 95%, 
+        25% 90%, 
+        15% 85%, 
+        5% 80%, 
+        0% 70%
+    );
 }
 
 #surf-social-widget .surf-chat-tab.active::after {
@@ -161,9 +174,21 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 12px;
+    height: 20px;
     background: white;
-    border-radius: 12px 12px 0 0;
+    clip-path: polygon(
+        0% 0%, 
+        100% 0%, 
+        100% 70%, 
+        95% 80%, 
+        85% 85%, 
+        75% 90%, 
+        50% 95%, 
+        25% 90%, 
+        15% 85%, 
+        5% 80%, 
+        0% 70%
+    );
     z-index: 1000002;
 }
 
@@ -173,10 +198,22 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 12px;
+    height: 20px;
     background: white;
+    clip-path: polygon(
+        0% 0%, 
+        100% 0%, 
+        100% 70%, 
+        95% 80%, 
+        85% 85%, 
+        75% 90%, 
+        50% 95%, 
+        25% 90%, 
+        15% 85%, 
+        5% 80%, 
+        0% 70%
+    );
     z-index: 1000001;
-    border-radius: 12px 12px 0 0;
 }
 
 /* Chat Messages */
@@ -583,21 +620,58 @@
         margin-top: 5px;
         transform: translateY(5px);
         z-index: 1000001;
+        clip-path: polygon(
+            0% 0%, 
+            100% 0%, 
+            100% 70%, 
+            95% 80%, 
+            85% 85%, 
+            75% 90%, 
+            50% 95%, 
+            25% 90%, 
+            15% 85%, 
+            5% 80%, 
+            0% 70%
+        );
     }
     
     #surf-social-widget .surf-chat-tab.active::after {
         bottom: 0;
         left: 0;
         right: 0;
-        height: 12px;
-        border-radius: 12px 12px 0 0;
+        height: 20px;
+        clip-path: polygon(
+            0% 0%, 
+            100% 0%, 
+            100% 70%, 
+            95% 80%, 
+            85% 85%, 
+            75% 90%, 
+            50% 95%, 
+            25% 90%, 
+            15% 85%, 
+            5% 80%, 
+            0% 70%
+        );
         z-index: 1000002;
     }
     
     #surf-social-widget .surf-chat-tab.active::before {
         bottom: 0;
-        height: 12px;
-        border-radius: 12px 12px 0 0;
+        height: 20px;
+        clip-path: polygon(
+            0% 0%, 
+            100% 0%, 
+            100% 70%, 
+            95% 80%, 
+            85% 85%, 
+            75% 90%, 
+            50% 95%, 
+            25% 90%, 
+            15% 85%, 
+            5% 80%, 
+            0% 70%
+        );
         z-index: 1000001;
     }
     
