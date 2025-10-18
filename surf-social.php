@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.70
+Version: 1.0.71
 Author: Thomas Fraher
 */
 
@@ -334,6 +334,12 @@ class Surf_Social {
             'permission_callback' => '__return_true'
         ));
         
+        register_rest_route('surf-social/v1', '/chat/individual/load-conversations', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'load_user_conversations'),
+            'permission_callback' => '__return_true'
+        ));
+        
         // Support chat endpoints
         register_rest_route('surf-social/v1', '/chat/support', array(
             'methods' => 'GET',
@@ -537,11 +543,15 @@ class Surf_Social {
             return new WP_Error('missing_params', 'User ID and target user ID are required', array('status' => 400));
         }
         
+        // Handle both string and integer user IDs
+        $user_id_escaped = $wpdb->esc_like($user_id);
+        $target_user_id_escaped = $wpdb->esc_like($target_user_id);
+        
         $messages = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT * FROM $table_name 
-                WHERE (sender_id = %d AND recipient_id = %d) 
-                OR (sender_id = %d AND recipient_id = %d)
+                WHERE (sender_id = %s AND recipient_id = %s) 
+                OR (sender_id = %s AND recipient_id = %s)
                 ORDER BY created_at DESC LIMIT %d OFFSET %d",
                 $user_id, $target_user_id, $target_user_id, $user_id, $per_page, $offset
             ),
@@ -582,7 +592,7 @@ class Surf_Social {
                 'message' => sanitize_textarea_field($message),
                 'created_at' => current_time('mysql')
             ),
-            array('%d', '%s', '%d', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -627,6 +637,48 @@ class Surf_Social {
                      ORDER BY created_at DESC LIMIT 1) as last_message
                 FROM $table_name 
                 WHERE sender_id = %d OR recipient_id = %d
+                GROUP BY other_user_id, other_user_name
+                ORDER BY last_message_time DESC",
+                $user_id, $user_id, $user_id, $user_id, $user_id, $user_id
+            ),
+            ARRAY_A
+        );
+        
+        return new WP_REST_Response(array('conversations' => $conversations), 200);
+    }
+    
+    /**
+     * Load user conversations for friend chat
+     */
+    public function load_user_conversations($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_individual_messages';
+        
+        $user_id = $request->get_param('user_id');
+        
+        if (empty($user_id)) {
+            return new WP_Error('missing_params', 'User ID is required', array('status' => 400));
+        }
+        
+        // Get all unique conversations for this user
+        $conversations = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT 
+                    CASE 
+                        WHEN sender_id = %s THEN recipient_id 
+                        ELSE sender_id 
+                    END as other_user_id,
+                    CASE 
+                        WHEN sender_id = %s THEN recipient_name 
+                        ELSE sender_name 
+                    END as other_user_name,
+                    MAX(created_at) as last_message_time,
+                    (SELECT message FROM $table_name 
+                     WHERE ((sender_id = %s AND recipient_id = other_user_id) 
+                            OR (sender_id = other_user_id AND recipient_id = %s))
+                     ORDER BY created_at DESC LIMIT 1) as last_message
+                FROM $table_name 
+                WHERE sender_id = %s OR recipient_id = %s
                 GROUP BY other_user_id, other_user_name
                 ORDER BY last_message_time DESC",
                 $user_id, $user_id, $user_id, $user_id, $user_id, $user_id
@@ -1746,9 +1798,9 @@ class Surf_Social {
         $table_name = $wpdb->prefix . 'surf_social_individual_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            sender_id bigint(20) NOT NULL,
+            sender_id varchar(100) NOT NULL,
             sender_name varchar(100) NOT NULL,
-            recipient_id bigint(20) NOT NULL,
+            recipient_id varchar(100) NOT NULL,
             recipient_name varchar(100) NOT NULL,
             message text NOT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -1759,6 +1811,9 @@ class Surf_Social {
             KEY created_at (created_at)
         ) $charset_collate;";
         dbDelta($sql);
+        
+        // Update existing table to use varchar for user IDs if needed
+        $this->update_individual_messages_table();
         
         // Support messages table
         $table_name = $wpdb->prefix . 'surf_social_support_messages';
@@ -1803,6 +1858,34 @@ class Surf_Social {
         add_option('surf_social_pusher_secret', '15a73a9dbb0a4884f6fa');
         add_option('surf_social_pusher_cluster', 'us3');
         add_option('surf_social_websocket_url', '');
+    }
+    
+    /**
+     * Update individual messages table to support string user IDs
+     */
+    private function update_individual_messages_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_individual_messages';
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+        if (!$table_exists) {
+            return;
+        }
+        
+        // Check if sender_id is already varchar
+        $column_info = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'sender_id'");
+        if (!empty($column_info) && strpos($column_info[0]->Type, 'varchar') === false) {
+            // Update sender_id column to varchar
+            $wpdb->query("ALTER TABLE $table_name MODIFY COLUMN sender_id varchar(100) NOT NULL");
+        }
+        
+        // Check if recipient_id is already varchar
+        $column_info = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'recipient_id'");
+        if (!empty($column_info) && strpos($column_info[0]->Type, 'varchar') === false) {
+            // Update recipient_id column to varchar
+            $wpdb->query("ALTER TABLE $table_name MODIFY COLUMN recipient_id varchar(100) NOT NULL");
+        }
     }
     
     /**

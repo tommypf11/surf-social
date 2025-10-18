@@ -67,6 +67,18 @@
         
         // Initialize guest registration if user is guest
         initGuestRegistration();
+        
+        // Load friend chat list if we're on the friend tab
+        if (currentTab === 'friend') {
+            showFriendChatList();
+        }
+        
+        // Set up periodic refresh of friend list
+        setInterval(() => {
+            if (currentTab === 'friend' && !currentChatUser) {
+                showFriendChatList();
+            }
+        }, 5000); // Refresh every 5 seconds
     }
     
     /**
@@ -776,6 +788,9 @@
             title.textContent = 'Friend Chat';
         }
         
+        // Load historical conversations
+        loadHistoricalConversations();
+        
         if (currentUsers.size === 0) {
             showEmptyState('No other users online. Share this page with friends to start chatting!');
             return;
@@ -790,6 +805,69 @@
             const userEl = createFriendChatUser(cursor.user, cursor);
             chatMessages.appendChild(userEl);
         });
+    }
+    
+    /**
+     * Load historical conversations
+     */
+    async function loadHistoricalConversations() {
+        try {
+            const response = await fetch(`${config.apiUrl}chat/individual/load-conversations?user_id=${config.currentUser.id}`, {
+                headers: {
+                    'X-WP-Nonce': config.nonce
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.conversations && data.conversations.length > 0) {
+                    // Add historical conversations to the friend list
+                    data.conversations.forEach(conv => {
+                        // Check if this user is already in currentUsers
+                        const existingUser = Array.from(currentUsers.values()).find(cursor => cursor.user.id === conv.other_user_id);
+                        if (!existingUser) {
+                            // Create a virtual user for historical conversation
+                            const virtualUser = {
+                                id: conv.other_user_id,
+                                name: conv.other_user_name,
+                                color: getColorForUserId(conv.other_user_id)
+                            };
+                            
+                            const virtualCursor = {
+                                user: virtualUser,
+                                lastSeen: new Date(conv.last_message_time).getTime(),
+                                element: null // No cursor element for historical users
+                            };
+                            
+                            // Add to currentUsers temporarily for display
+                            currentUsers.set(conv.other_user_id, virtualCursor);
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load historical conversations:', error);
+        }
+    }
+    
+    /**
+     * Get color for user ID
+     */
+    function getColorForUserId(userId) {
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+            '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788'
+        ];
+        
+        if (typeof userId === 'string') {
+            const hash = userId.split('').reduce((a, b) => {
+                a = ((a << 5) - a) + b.charCodeAt(0);
+                return a & a;
+            }, 0);
+            return colors[Math.abs(hash) % colors.length];
+        }
+        
+        return colors[Math.abs(userId) % colors.length];
     }
     
     /**
@@ -916,13 +994,22 @@
         chatMessages.innerHTML = '<div class="surf-loading"></div>';
         
         try {
+            console.log('Loading individual messages for user:', user.id, 'from user:', config.currentUser.id);
+            
             const response = await fetch(`${config.apiUrl}chat/individual?user_id=${config.currentUser.id}&target_user_id=${user.id}`, {
                 headers: {
                     'X-WP-Nonce': config.nonce
                 }
             });
             
+            console.log('Individual messages response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
+            console.log('Individual messages data:', data);
             
             chatMessages.innerHTML = '';
             
@@ -938,7 +1025,7 @@
             }
         } catch (error) {
             console.error('Failed to load individual messages:', error);
-            chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load messages</p></div>';
+            chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load messages: ' + error.message + '</p></div>';
         }
     }
     
