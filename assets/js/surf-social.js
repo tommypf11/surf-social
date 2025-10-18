@@ -29,6 +29,7 @@
     let hasSetGuestEmail = false; // Track if guest has set their email
     let hasSetGuestInfo = false; // Track if guest has completed registration
     let isFirstMessage = true; // Track if this is the first message attempt
+    let supportRefreshInterval = null; // Auto-refresh for support chat
     
     // DOM Elements
     const chatDrawer = document.getElementById('surf-chat-drawer');
@@ -710,6 +711,9 @@
         // Clear current chat user when switching tabs
         currentChatUser = null;
         
+        // Stop any existing auto-refresh
+        stopSupportAutoRefresh();
+        
         // Show appropriate content based on tab
         if (tabName === 'friend') {
             showFriendChatList();
@@ -883,6 +887,9 @@
         
         // Load support messages
         loadSupportMessages();
+        
+        // Start auto-refresh for support chat
+        startSupportAutoRefresh();
     }
     
     /**
@@ -1940,6 +1947,31 @@
             updateAvatarDock();
         }
     }, 60000); // Check every minute
+    
+    /**
+     * Start auto-refresh for support chat
+     */
+    function startSupportAutoRefresh() {
+        // Clear any existing interval
+        stopSupportAutoRefresh();
+        
+        // Refresh support messages every 3 seconds
+        supportRefreshInterval = setInterval(() => {
+            if (currentTab === 'support') {
+                loadSupportMessages();
+            }
+        }, 3000);
+    }
+    
+    /**
+     * Stop auto-refresh for support chat
+     */
+    function stopSupportAutoRefresh() {
+        if (supportRefreshInterval) {
+            clearInterval(supportRefreshInterval);
+            supportRefreshInterval = null;
+        }
+    }
     
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {

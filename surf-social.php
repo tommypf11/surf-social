@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.62
+Version: 1.0.63
 Author: Thomas Fraher
 */
 
@@ -680,6 +680,17 @@ class Surf_Social {
             return new WP_Error('invalid_data', 'Message and user ID are required', array('status' => 400));
         }
         
+        // Ensure user_name is not empty - get from existing messages if needed
+        if (empty($user_name)) {
+            $existing_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT user_name FROM $table_name WHERE user_id = %s AND user_name != '' LIMIT 1",
+                $user_id
+            ));
+            if ($existing_name) {
+                $user_name = $existing_name;
+            }
+        }
+        
         // Convert user_id to string if it's a guest user
         if (is_string($user_id) && strpos($user_id, 'guest_') === 0) {
             // For guest users, we need to handle the user_id as a string
@@ -1047,7 +1058,7 @@ class Surf_Social {
                 COUNT(*) as message_count,
                 status,
                 CASE 
-                    WHEN MAX(admin_id) IS NOT NULL THEN 1 
+                    WHEN COUNT(CASE WHEN admin_id IS NOT NULL THEN 1 END) > 0 THEN 1 
                     ELSE 0 
                 END as is_read_by_admin,
                 (SELECT message FROM $table_name t2 
@@ -1190,6 +1201,21 @@ class Surf_Social {
             ),
             array('%d', '%s'),
             array('%s', 'NULL')
+        );
+        
+        // Also update any messages that don't have admin_id set (for backward compatibility)
+        $wpdb->update(
+            $table_name,
+            array(
+                'admin_id' => get_current_user_id(),
+                'admin_name' => wp_get_current_user()->display_name ?: wp_get_current_user()->user_login
+            ),
+            array(
+                'user_id' => $user_id,
+                'admin_id' => 0
+            ),
+            array('%d', '%s'),
+            array('%s', '%d')
         );
         
         // Also update the user_name if it's empty

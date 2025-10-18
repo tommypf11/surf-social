@@ -1466,6 +1466,10 @@ jQuery(document).ready(function($) {
         // Refresh support tickets every 5 seconds
         autoRefreshInterval = setInterval(() => {
             loadSupportTickets();
+            // Also refresh the conversation if one is selected
+            if (selectedTicketUserId) {
+                loadSupportConversation(selectedTicketUserId);
+            }
         }, 5000);
     }
     
