@@ -1913,15 +1913,15 @@
      * Auto-login guest with saved info
      */
     function autoLoginGuest(savedGuestInfo) {
-        // Update user info
+        // Use the saved user ID and color to maintain consistency
+        config.currentUser.id = savedGuestInfo.userId;
         config.currentUser.name = savedGuestInfo.name;
         config.currentUser.email = savedGuestInfo.email;
-        hasSetGuestInfo = true;
         
-        // Update the saved info with current user ID if it has changed
-        if (savedGuestInfo.userId !== config.currentUser.id) {
-            saveGuestInfoToStorage(savedGuestInfo.name, savedGuestInfo.email, config.currentUser.id);
-        }
+        // Ensure we have a consistent color for this user ID
+        config.currentUser.color = getColorForUserId(savedGuestInfo.userId);
+        
+        hasSetGuestInfo = true;
         
         // Update cursor name immediately
         updateCurrentUserCursor();
@@ -2059,18 +2059,23 @@
         }
         
         try {
+            // Keep the original user ID from the server to maintain consistency
+            const originalUserId = config.currentUser.id;
+            
+            // Update user info with original ID and consistent color
+            config.currentUser.name = name;
+            config.currentUser.email = email;
+            config.currentUser.color = getColorForUserId(originalUserId);
+            
             // Show success animation
             showNameSuccessAnimation();
             
             // Save guest information to localStorage
-            saveGuestInfoToStorage(name, email, config.currentUser.id);
+            saveGuestInfoToStorage(name, email, originalUserId);
             
             // Save guest information to backend
             await saveGuestInfo(name, email);
             
-            // Update user info
-            config.currentUser.name = name;
-            config.currentUser.email = email;
             hasSetGuestInfo = true;
             
             // Update cursor name immediately

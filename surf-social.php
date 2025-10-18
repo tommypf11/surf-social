@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.74
+Version: 1.0.75
 Author: Thomas Fraher
 */
 
@@ -146,8 +146,12 @@ class Surf_Social {
         
         // Generate guest user info if not logged in
         if (!$user_id) {
-            $user_id = 'guest_' . wp_generate_password(8, false);
-            $user_name = 'Guest ' . substr($user_id, -4);
+            // Generate a consistent guest ID based on IP and user agent
+            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+            $consistent_id = 'guest_' . substr(md5($ip . $user_agent), 0, 12);
+            $user_id = $consistent_id;
+            $user_name = 'Guest ' . substr($consistent_id, -4);
             $is_guest = true;
         } else {
             $user_name = $current_user->display_name ?: $current_user->user_login;
@@ -156,7 +160,9 @@ class Surf_Social {
         
         // Ensure we always have a user ID and name
         if (empty($user_id)) {
-            $user_id = 'guest_' . uniqid();
+            // Fallback to a consistent ID based on IP
+            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $user_id = 'guest_' . substr(md5($ip), 0, 12);
             $user_name = 'Guest User';
             $is_guest = true;
         }
