@@ -614,6 +614,33 @@ if (!defined('ABSPATH')) {
     cursor: not-allowed;
 }
 
+/* Auto-refresh indicator */
+.surf-auto-refresh-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #666;
+    padding: 4px 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e1e5e9;
+}
+
+.surf-refresh-dot {
+    width: 8px;
+    height: 8px;
+    background: #28a745;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .surf-table-header {
@@ -722,12 +749,10 @@ if (!defined('ABSPATH')) {
                             <option value="unread">Unread</option>
                             <option value="read">Read</option>
                         </select>
-                        <button class="surf-refresh-btn" id="refresh-support-tickets">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                <path d="M1 4V10H7M23 20V14H17M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            Refresh
-                        </button>
+                        <div class="surf-auto-refresh-indicator" id="auto-refresh-indicator">
+                            <div class="surf-refresh-dot"></div>
+                            Auto-updating
+                        </div>
                     </div>
                 </div>
                 
@@ -935,12 +960,16 @@ jQuery(document).ready(function($) {
     let currentSupportTickets = [];
     let selectedTicketUserId = null;
     let supportStatusFilter = 'all';
+    let autoRefreshInterval = null;
     
     // Load stats, user submissions, and messages on page load
     loadStats();
     loadUserSubmissions();
     loadMessages();
     loadSupportTickets();
+    
+    // Start auto-refresh for support tickets
+    startAutoRefresh();
     
     
     // Initialize default sort indicator
@@ -1267,10 +1296,14 @@ jQuery(document).ready(function($) {
         }
         
         currentSupportTickets.forEach(ticket => {
+            // Filter tickets based on status filter
+            if (supportStatusFilter === 'unread' && ticket.is_read_by_admin) return;
+            if (supportStatusFilter === 'read' && !ticket.is_read_by_admin) return;
+            
             const ticketEl = $(`
                 <div class="surf-ticket-item" data-user-id="${ticket.user_id}">
                     <div class="surf-ticket-header">
-                        <div class="surf-ticket-user">${ticket.user_name}</div>
+                        <div class="surf-ticket-user">${ticket.user_name || 'Unknown User'}</div>
                         <div class="surf-ticket-status ${ticket.is_read_by_admin ? 'read' : 'unread'}">${ticket.is_read_by_admin ? 'Read' : 'Unread'}</div>
                     </div>
                     <div class="surf-ticket-message">${ticket.last_message || 'No messages yet'}</div>
@@ -1428,12 +1461,34 @@ jQuery(document).ready(function($) {
         return date.toLocaleDateString();
     }
     
+    // Auto-refresh functionality
+    function startAutoRefresh() {
+        // Refresh support tickets every 5 seconds
+        autoRefreshInterval = setInterval(() => {
+            loadSupportTickets();
+        }, 5000);
+    }
     
-    // Support management event handlers
-    $('#refresh-support-tickets').on('click', function() {
-        loadSupportTickets();
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+    
+    // Restart auto-refresh when page becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopAutoRefresh();
+        } else {
+            if (!autoRefreshInterval) {
+                startAutoRefresh();
+            }
+        }
     });
     
+    
+    // Support management event handlers
     $('#support-status-filter').on('change', function() {
         supportStatusFilter = $(this).val();
         loadSupportTickets();

@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.61
+Version: 1.0.62
 Author: Thomas Fraher
 */
 
@@ -1002,6 +1002,31 @@ class Surf_Social {
     }
     
     /**
+     * Broadcast admin reply to frontend
+     */
+    private function broadcast_admin_reply($user_id, $user_name, $message, $admin_name) {
+        $data = array(
+            'type' => 'admin-support-reply',
+            'user_id' => $user_id,
+            'user_name' => $user_name,
+            'admin_name' => $admin_name,
+            'message' => $message,
+            'created_at' => current_time('mysql')
+        );
+        
+        // Try Pusher first
+        if (get_option('surf_social_use_pusher', '1') === '1') {
+            $this->broadcast_via_pusher('admin-support-reply', $data);
+        }
+        
+        // Try WebSocket as fallback
+        $websocket_url = get_option('surf_social_websocket_url');
+        if ($websocket_url) {
+            $this->broadcast_via_websocket('admin-support-reply', $data);
+        }
+    }
+    
+    /**
      * AJAX handler for getting support tickets
      */
     public function ajax_get_support_tickets() {
@@ -1024,8 +1049,12 @@ class Surf_Social {
                 CASE 
                     WHEN MAX(admin_id) IS NOT NULL THEN 1 
                     ELSE 0 
-                END as is_read_by_admin
-            FROM $table_name 
+                END as is_read_by_admin,
+                (SELECT message FROM $table_name t2 
+                 WHERE t2.user_id = t1.user_id 
+                 ORDER BY t2.created_at DESC 
+                 LIMIT 1) as last_message
+            FROM $table_name t1
             GROUP BY user_id, user_name, status
             ORDER BY last_message_time DESC",
             ARRAY_A
@@ -1115,6 +1144,15 @@ class Surf_Social {
         );
         
         if ($result) {
+            // Get the user name from existing messages
+            $user_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT user_name FROM $table_name WHERE user_id = %s LIMIT 1",
+                $user_id
+            ));
+            
+            // Broadcast the admin reply to the frontend
+            $this->broadcast_admin_reply($user_id, $user_name, $message, $admin_name);
+            
             wp_send_json_success('Reply sent successfully');
         } else {
             wp_send_json_error('Failed to send reply');
@@ -1139,7 +1177,7 @@ class Surf_Social {
             wp_send_json_error('User ID is required');
         }
         
-        // Update all messages for this user to mark them as read by admin
+        // Update all unread messages for this user to mark them as read by admin
         $result = $wpdb->update(
             $table_name,
             array(
@@ -1152,6 +1190,18 @@ class Surf_Social {
             ),
             array('%d', '%s'),
             array('%s', 'NULL')
+        );
+        
+        // Also update the user_name if it's empty
+        $wpdb->update(
+            $table_name,
+            array('user_name' => $wpdb->get_var($wpdb->prepare(
+                "SELECT user_name FROM $table_name WHERE user_id = %s AND user_name != '' LIMIT 1",
+                $user_id
+            ))),
+            array('user_id' => $user_id, 'user_name' => ''),
+            array('%s'),
+            array('%s', '%s')
         );
         
         wp_send_json_success('Marked as read');
