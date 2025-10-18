@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.93
+Version: 1.0.94
 Author: Thomas Fraher
 */
 
@@ -382,6 +382,13 @@ class Surf_Social {
         register_rest_route('surf-social/v1', '/debug/support', array(
             'methods' => 'GET',
             'callback' => array($this, 'debug_support_messages'),
+            'permission_callback' => '__return_true'
+        ));
+        
+        // Migration endpoint to force database updates
+        register_rest_route('surf-social/v1', '/migrate', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'force_migration'),
             'permission_callback' => '__return_true'
         ));
         
@@ -847,6 +854,11 @@ class Surf_Social {
             }
         }
         
+        // Check if threading columns exist
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name", ARRAY_A);
+        $column_names = array_column($columns, 'Field');
+        $has_threading = in_array('thread_id', $column_names);
+        
         // Prepare data for insertion
         $insert_data = array(
             'user_id' => $user_id,
@@ -856,13 +868,20 @@ class Surf_Social {
             'message' => sanitize_textarea_field($message),
             'message_type' => sanitize_text_field($message_type),
             'status' => 'open',
-            'thread_id' => $thread_id,
-            'parent_message_id' => $parent_message_id,
-            'is_thread_starter' => $is_thread_starter,
             'created_at' => current_time('mysql')
         );
         
-        $format = array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s');
+        $format = array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s');
+        
+        // Add threading columns if they exist
+        if ($has_threading) {
+            $insert_data['thread_id'] = $thread_id;
+            $insert_data['parent_message_id'] = $parent_message_id;
+            $insert_data['is_thread_starter'] = $is_thread_starter;
+            $format[] = '%s';
+            $format[] = '%d';
+            $format[] = '%d';
+        }
         
         error_log('Surf Social Debug - Insert data: ' . print_r($insert_data, true));
         error_log('Surf Social Debug - Format: ' . print_r($format, true));
@@ -2159,6 +2178,9 @@ class Surf_Social {
         // Update support messages table to use varchar for user IDs if needed
         $this->update_support_messages_table();
         
+        // Force migration if needed
+        $this->ensure_support_table_migration();
+        
         // Create optimized indexes
         $this->create_database_indexes();
         
@@ -2241,28 +2263,92 @@ class Surf_Social {
         // Check if table exists
         $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
         if (!$table_exists) {
+            error_log('Surf Social: Support messages table does not exist, skipping threading columns');
             return;
         }
         
-        // Add thread_id column if it doesn't exist
-        $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'thread_id'));
-        if (empty($column_exists)) {
-            $wpdb->query("ALTER TABLE $table_name ADD COLUMN thread_id varchar(100) NULL AFTER admin_read_at");
-            $wpdb->query("ALTER TABLE $table_name ADD KEY thread_id (thread_id)");
+        // Force recreate table with threading columns if they don't exist
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name", ARRAY_A);
+        $column_names = array_column($columns, 'Field');
+        
+        $needs_recreation = false;
+        $missing_columns = array();
+        
+        if (!in_array('thread_id', $column_names)) {
+            $missing_columns[] = 'thread_id';
+            $needs_recreation = true;
+        }
+        if (!in_array('parent_message_id', $column_names)) {
+            $missing_columns[] = 'parent_message_id';
+            $needs_recreation = true;
+        }
+        if (!in_array('is_thread_starter', $column_names)) {
+            $missing_columns[] = 'is_thread_starter';
+            $needs_recreation = true;
         }
         
-        // Add parent_message_id column if it doesn't exist
-        $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'parent_message_id'));
-        if (empty($column_exists)) {
-            $wpdb->query("ALTER TABLE $table_name ADD COLUMN parent_message_id bigint(20) NULL AFTER thread_id");
-            $wpdb->query("ALTER TABLE $table_name ADD KEY parent_message_id (parent_message_id)");
-        }
-        
-        // Add is_thread_starter column if it doesn't exist
-        $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'is_thread_starter'));
-        if (empty($column_exists)) {
-            $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_thread_starter tinyint(1) DEFAULT 0 AFTER parent_message_id");
-            $wpdb->query("ALTER TABLE $table_name ADD KEY is_thread_starter (is_thread_starter)");
+        if ($needs_recreation) {
+            error_log('Surf Social: Missing threading columns: ' . implode(', ', $missing_columns));
+            error_log('Surf Social: Recreating support messages table with threading support');
+            
+            // Backup existing data
+            $existing_data = $wpdb->get_results("SELECT * FROM $table_name", ARRAY_A);
+            
+            // Drop and recreate table
+            $wpdb->query("DROP TABLE IF EXISTS $table_name");
+            
+            $sql = "CREATE TABLE $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                user_id varchar(100) NOT NULL,
+                user_name varchar(100) NOT NULL,
+                admin_id bigint(20) NULL,
+                admin_name varchar(100) NULL,
+                message text NOT NULL,
+                message_type enum('user', 'admin') DEFAULT 'user',
+                status enum('open', 'closed', 'resolved') DEFAULT 'open',
+                admin_read_at datetime NULL,
+                thread_id varchar(100) NULL,
+                parent_message_id bigint(20) NULL,
+                is_thread_starter tinyint(1) DEFAULT 0,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                KEY user_id (user_id),
+                KEY admin_id (admin_id),
+                KEY status (status),
+                KEY created_at (created_at),
+                KEY admin_read_at (admin_read_at),
+                KEY thread_id (thread_id),
+                KEY parent_message_id (parent_message_id),
+                KEY is_thread_starter (is_thread_starter)
+            ) " . $wpdb->get_charset_collate();
+            
+            $wpdb->query($sql);
+            
+            // Restore existing data
+            if (!empty($existing_data)) {
+                foreach ($existing_data as $row) {
+                    $wpdb->insert($table_name, array(
+                        'id' => $row['id'],
+                        'user_id' => $row['user_id'],
+                        'user_name' => $row['user_name'],
+                        'admin_id' => $row['admin_id'],
+                        'admin_name' => $row['admin_name'],
+                        'message' => $row['message'],
+                        'message_type' => $row['message_type'],
+                        'status' => $row['status'],
+                        'admin_read_at' => $row['admin_read_at'],
+                        'thread_id' => null, // New column
+                        'parent_message_id' => null, // New column
+                        'is_thread_starter' => 0, // New column
+                        'created_at' => $row['created_at']
+                    ));
+                }
+                error_log('Surf Social: Restored ' . count($existing_data) . ' existing support messages');
+            }
+            
+            error_log('Surf Social: Support messages table recreated successfully with threading support');
+        } else {
+            error_log('Surf Social: All threading columns already exist in support messages table');
         }
     }
     
@@ -2284,6 +2370,38 @@ class Surf_Social {
         if (!empty($column_info) && strpos($column_info[0]->Type, 'varchar') === false) {
             // Update user_id column to varchar
             $wpdb->query("ALTER TABLE $table_name MODIFY COLUMN user_id varchar(100) NOT NULL");
+        }
+    }
+    
+    /**
+     * Ensure support table migration is complete
+     */
+    private function ensure_support_table_migration() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+        if (!$table_exists) {
+            error_log('Surf Social: Support messages table does not exist, creating it');
+            return;
+        }
+        
+        // Check if all required columns exist
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name", ARRAY_A);
+        $column_names = array_column($columns, 'Field');
+        
+        $required_columns = array('thread_id', 'parent_message_id', 'is_thread_starter');
+        $missing_columns = array_diff($required_columns, $column_names);
+        
+        if (!empty($missing_columns)) {
+            error_log('Surf Social: Missing required columns in support table: ' . implode(', ', $missing_columns));
+            error_log('Surf Social: Forcing table recreation...');
+            
+            // Force recreation by calling add_threading_columns again
+            $this->add_threading_columns();
+        } else {
+            error_log('Surf Social: Support table migration is complete');
         }
     }
     
@@ -2363,6 +2481,25 @@ class Surf_Social {
         }
         
         return new WP_REST_Response($debug_info, 200);
+    }
+    
+    /**
+     * Force migration endpoint
+     */
+    public function force_migration($request) {
+        error_log('Surf Social: Force migration requested');
+        
+        // Run all migration functions
+        $this->add_admin_read_at_column();
+        $this->add_threading_columns();
+        $this->update_support_messages_table();
+        $this->ensure_support_table_migration();
+        $this->create_database_indexes();
+        
+        return new WP_REST_Response(array(
+            'success' => true,
+            'message' => 'Migration completed successfully'
+        ), 200);
     }
     
     /**

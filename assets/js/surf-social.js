@@ -820,7 +820,7 @@
     }
     
     /**
-     * Show Friend Chat list
+     * Show Friend Chat list with collapsible sections
      */
     async function showFriendChatList() {
         chatMessages.innerHTML = '';
@@ -834,21 +834,59 @@
         // Load historical conversations first
         await loadHistoricalConversations();
         
-        // If no users are available, show empty state
-        if (currentUsers.size === 0) {
+        // Create container for both sections
+        const container = document.createElement('div');
+        container.className = 'surf-friend-chat-container';
+        
+        // Create Active Users Section
+        const activeUsersSection = createCollapsibleSection('Active Users', 'surf-active-users-section');
+        const activeUsersContent = activeUsersSection.querySelector('.surf-collapsible-content');
+        
+        // Get active users (those with cursor elements)
+        const activeUsers = Array.from(currentUsers.values()).filter(cursor => cursor.element !== null);
+        
+        if (activeUsers.length > 0) {
+            // Sort active users by last seen time (most recent first)
+            activeUsers.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+            
+            activeUsers.forEach(cursor => {
+                const userEl = createFriendChatUser(cursor.user, cursor);
+                activeUsersContent.appendChild(userEl);
+            });
+        } else {
+            activeUsersContent.innerHTML = '<div class="surf-empty-subsection">No users currently online</div>';
+        }
+        
+        container.appendChild(activeUsersSection);
+        
+        // Create Historical Chats Section
+        const historicalSection = createCollapsibleSection('Recent Chats', 'surf-historical-section');
+        const historicalContent = historicalSection.querySelector('.surf-collapsible-content');
+        
+        // Get historical users (those without cursor elements but with messages)
+        const historicalUsers = Array.from(currentUsers.values()).filter(cursor => cursor.element === null);
+        
+        if (historicalUsers.length > 0) {
+            // Sort historical users by last message time (most recent first)
+            historicalUsers.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+            
+            historicalUsers.forEach(cursor => {
+                const userEl = createFriendChatUser(cursor.user, cursor);
+                historicalContent.appendChild(userEl);
+            });
+        } else {
+            historicalContent.innerHTML = '<div class="surf-empty-subsection">No previous conversations</div>';
+        }
+        
+        container.appendChild(historicalSection);
+        
+        // If no users at all, show empty state
+        if (activeUsers.length === 0 && historicalUsers.length === 0) {
             showEmptyState('No other users online. Share this page with friends to start chatting!');
             return;
         }
         
-        const users = Array.from(currentUsers.values());
-        
-        // Sort users by last seen time (most recent first)
-        users.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
-        
-        users.forEach(cursor => {
-            const userEl = createFriendChatUser(cursor.user, cursor);
-            chatMessages.appendChild(userEl);
-        });
+        chatMessages.appendChild(container);
     }
     
     /**
@@ -994,6 +1032,46 @@
         }
         
         return colors[Math.abs(userId) % colors.length];
+    }
+    
+    /**
+     * Create collapsible section element
+     */
+    function createCollapsibleSection(title, sectionId) {
+        const section = document.createElement('div');
+        section.className = 'surf-collapsible-section';
+        section.id = sectionId;
+        
+        const header = document.createElement('div');
+        header.className = 'surf-collapsible-header';
+        header.innerHTML = `
+            <span class="surf-collapsible-title">${title}</span>
+            <svg class="surf-collapsible-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        
+        const content = document.createElement('div');
+        content.className = 'surf-collapsible-content';
+        content.style.display = 'block'; // Start expanded by default
+        
+        const divider = document.createElement('div');
+        divider.className = 'surf-section-divider';
+        
+        section.appendChild(header);
+        section.appendChild(content);
+        section.appendChild(divider);
+        
+        // Add click handler for collapse/expand
+        header.addEventListener('click', () => {
+            const isExpanded = content.style.display !== 'none';
+            content.style.display = isExpanded ? 'none' : 'block';
+            
+            const icon = header.querySelector('.surf-collapsible-icon');
+            icon.style.transform = isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)';
+        });
+        
+        return section;
     }
     
     /**
