@@ -2281,19 +2281,21 @@
             if (badge) {
                 const count = tabUnreadCounts[tabName];
                 console.log(`Tab ${tabName} count: ${count}`);
-                if (count > 0) {
+                
+                // Only show badge if there are unread messages AND this tab is not currently active
+                if (count > 0 && tabName !== currentTab) {
                     badge.textContent = count > 99 ? '99+' : count;
                     badge.style.setProperty('display', 'flex', 'important');
                     badge.style.setProperty('visibility', 'visible', 'important');
                     badge.style.setProperty('opacity', '1', 'important');
                     badge.classList.remove('hidden');
-                    console.log(`Showing badge for ${tabName} with count ${count}`);
+                    console.log(`Showing badge for ${tabName} with count ${count} (not active tab)`);
                 } else {
                     badge.style.setProperty('display', 'none', 'important');
                     badge.style.setProperty('visibility', 'hidden', 'important');
                     badge.style.setProperty('opacity', '0', 'important');
                     badge.classList.add('hidden');
-                    console.log(`Hiding badge for ${tabName}`);
+                    console.log(`Hiding badge for ${tabName} (active tab or no count)`);
                 }
             } else {
                 console.error(`Badge not found for tab: ${tabName}`);
