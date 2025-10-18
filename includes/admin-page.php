@@ -672,7 +672,6 @@ if (!defined('ABSPATH')) {
         
         <div class="surf-message-management-container">
             <div class="surf-table-header">
-                <h3>Recent Web Chat Messages</h3>
                 <div class="surf-table-controls">
                     <button class="surf-refresh-btn" id="refresh-messages">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
