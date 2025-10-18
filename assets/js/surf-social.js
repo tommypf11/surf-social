@@ -750,16 +750,10 @@
             }
         });
         
-        // Update title if it exists
+        // Clear title
         const title = document.querySelector('.surf-chat-title');
         if (title) {
-            if (tabName === 'web') {
-                title.textContent = 'Web Chat';
-            } else if (tabName === 'friend') {
-                title.textContent = 'Friend Chat';
-            } else if (tabName === 'support') {
-                title.textContent = 'Support';
-            }
+            title.textContent = '';
         }
         
         // Clear current chat user when switching tabs
@@ -808,10 +802,10 @@
     async function showFriendChatList() {
         chatMessages.innerHTML = '';
         
-        // Update title
+        // Clear title
         const title = document.querySelector('.surf-chat-title');
         if (title) {
-            title.textContent = 'Friend Chat';
+            title.textContent = '';
         }
         
         // Load historical conversations first
@@ -1201,7 +1195,7 @@
             // Show regular user support chat
             currentChatUser = adminUser;
             if (title) {
-                title.textContent = 'Support Chat';
+                title.textContent = '';
             }
             
             // Load support messages
@@ -1884,7 +1878,7 @@
         individualChats.get('admin').push(msg);
         
         // If we're currently viewing a specific support conversation, show the message
-        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin') {
+        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin' && currentChatUser.id !== null) {
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
@@ -1922,7 +1916,7 @@
         individualChats.get('admin').push(msg);
         
         // If we're currently viewing a specific support conversation, show the message
-        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin') {
+        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin' && currentChatUser.id !== null) {
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
@@ -2445,10 +2439,10 @@
      * Show Admin Support Dashboard
      */
     async function showAdminSupportDashboard() {
-        // Reset title to normal
+        // Clear title
         const title = document.querySelector('.surf-chat-title');
         if (title) {
-            title.textContent = 'Support Chats';
+            title.textContent = '';
         }
         
         // Hide input and send button on admin dashboard
@@ -2647,6 +2641,11 @@
         // Force scroll to bottom after messages are rendered
         const scrollToBottom = () => {
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            // Also try scrolling to the last message element
+            const lastMessage = chatMessages.querySelector('.surf-message-item:last-child');
+            if (lastMessage) {
+                lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
         };
         
         // Try multiple times to ensure scroll happens
@@ -2655,6 +2654,7 @@
         setTimeout(scrollToBottom, 100);
         setTimeout(scrollToBottom, 200);
         setTimeout(scrollToBottom, 500);
+        setTimeout(scrollToBottom, 1000);
         
         // Update current chat user for sending messages
         currentChatUser = {
