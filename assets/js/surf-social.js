@@ -2564,7 +2564,10 @@
             displayAdminSupportConversation(data.messages, data.user_info);
             
             // Mark as read
-            markSupportAsRead(userId);
+            await markSupportAsRead(userId);
+            
+            // Refresh the admin dashboard to update unread status
+            // (This will be handled by real-time updates, but we can also refresh manually)
             
         } catch (error) {
             console.error('Failed to load support conversation:', error);
@@ -2577,6 +2580,15 @@
      */
     function displayAdminSupportConversation(messages, userInfo) {
         let html = '<div class="surf-admin-conversation">';
+        
+        // Add back button
+        html += `
+            <div class="surf-admin-back-button">
+                <button onclick="showAdminSupportDashboard()" class="surf-back-btn">
+                    ← Back to All Chats
+                </button>
+            </div>
+        `;
         
         if (messages.length === 0) {
             html += '<div class="surf-empty-state"><p>No messages in this conversation</p></div>';
@@ -2602,8 +2614,10 @@
         html += '</div>';
         chatMessages.innerHTML = html;
         
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Scroll to bottom with a small delay to ensure DOM is updated
+        setTimeout(() => {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 100);
         
         // Update current chat user for sending messages
         currentChatUser = {
