@@ -1884,13 +1884,13 @@
         individualChats.get('admin').push(msg);
         
         // If we're currently viewing support chat, show the message
-        if (currentTab === 'support') {
+        if (currentTab === 'support' && currentChatUser) {
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
         }
         
-        // Update admin dashboard if it's visible
+        // Update admin dashboard if it's visible (but don't add messages to it)
         if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
             console.log('Refreshing admin dashboard due to new support message');
             showAdminSupportDashboard();
@@ -1922,13 +1922,13 @@
         individualChats.get('admin').push(msg);
         
         // If we're currently viewing support chat, show the message
-        if (currentTab === 'support') {
+        if (currentTab === 'support' && currentChatUser) {
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
         }
         
-        // Update admin dashboard if it's visible
+        // Update admin dashboard if it's visible (but don't add messages to it)
         if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
             console.log('Refreshing admin dashboard due to new admin support reply');
             showAdminSupportDashboard();
@@ -2445,6 +2445,12 @@
      * Show Admin Support Dashboard
      */
     async function showAdminSupportDashboard() {
+        // Reset title to normal
+        const title = document.querySelector('.surf-chat-title');
+        if (title) {
+            title.textContent = 'Admin Support Dashboard';
+        }
+        
         chatMessages.innerHTML = '<div class="surf-loading">Loading support tickets...</div>';
         
         try {
@@ -2470,6 +2476,7 @@
             
             if (data.tickets && data.tickets.length > 0) {
                 console.log('Found', data.tickets.length, 'support tickets');
+                console.log('Tickets data:', data.tickets);
                 displayAdminSupportTickets(data.tickets);
             } else {
                 console.log('No support tickets found');
@@ -2494,6 +2501,8 @@
             const lastMessageTime = new Date(ticket.last_message_time);
             const timeAgo = formatTimeAgo(ticket.last_message_time);
             const isUnread = !ticket.is_read_by_admin;
+            
+            console.log('Ticket:', ticket.user_name, 'is_read_by_admin:', ticket.is_read_by_admin, 'isUnread:', isUnread);
             
             html += `
                 <div class="surf-admin-ticket-item ${isUnread ? 'unread' : ''}" data-user-id="${ticket.user_id}">
@@ -2620,20 +2629,17 @@
         html += '</div>';
         chatMessages.innerHTML = html;
         
-        // Scroll to bottom using requestAnimationFrame for better timing
-        requestAnimationFrame(() => {
+        // Force scroll to bottom after messages are rendered
+        const scrollToBottom = () => {
             chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
+        };
         
-        // Also try scrolling after a delay as backup
-        setTimeout(() => {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 100);
-        
-        // Final attempt after longer delay
-        setTimeout(() => {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 300);
+        // Try multiple times to ensure scroll happens
+        requestAnimationFrame(scrollToBottom);
+        setTimeout(scrollToBottom, 50);
+        setTimeout(scrollToBottom, 100);
+        setTimeout(scrollToBottom, 200);
+        setTimeout(scrollToBottom, 500);
         
         // Update current chat user for sending messages
         currentChatUser = {
