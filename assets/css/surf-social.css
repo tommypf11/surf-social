@@ -267,6 +267,31 @@
     overflow: visible;
 }
 
+/* Tab Badge Styles */
+.surf-tab-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--surf-primary);
+    color: white;
+    border-radius: 50%;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    border: 2px solid white;
+    z-index: 1000002;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.surf-tab-badge.hidden {
+    display: none !important;
+}
+
 
 /* Chat Messages */
 .surf-chat-messages {
@@ -765,17 +790,7 @@
 
 /* Removed expand button styles - no longer needed */
 
-.surf-avatar-unread {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 12px;
-    height: 12px;
-    background: var(--surf-primary);
-    border-radius: 50%;
-    border: 2px solid white;
-    z-index: 3;
-}
+/* Avatar unread indicators removed - notifications only on chat icon */
 
 /* Presence Cursors */
 #surf-cursors-container {

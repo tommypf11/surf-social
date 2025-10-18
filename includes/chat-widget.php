@@ -12,9 +12,18 @@ if (!defined('ABSPATH')) {
     <!-- Chat Drawer -->
     <div id="surf-chat-drawer" class="surf-chat-drawer">
         <div class="surf-chat-tabs">
-            <button class="surf-chat-tab active" data-tab="web">Web Chat</button>
-            <button class="surf-chat-tab" data-tab="friend">Friend Chat</button>
-            <button class="surf-chat-tab" data-tab="support">Support</button>
+            <button class="surf-chat-tab active" data-tab="web">
+                Web Chat
+                <span class="surf-tab-badge" data-tab="web" style="display: none;">0</span>
+            </button>
+            <button class="surf-chat-tab" data-tab="friend">
+                Friend Chat
+                <span class="surf-tab-badge" data-tab="friend" style="display: none;">0</span>
+            </button>
+            <button class="surf-chat-tab" data-tab="support">
+                Support
+                <span class="surf-tab-badge" data-tab="support" style="display: none;">0</span>
+            </button>
         </div>
         
         <div class="surf-chat-title"></div>

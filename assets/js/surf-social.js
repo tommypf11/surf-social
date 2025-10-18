@@ -24,6 +24,7 @@
     let currentTab = 'web';
     let currentChatUser = null;
     let individualChats = new Map(); // Store individual chat messages
+    let tabUnreadCounts = { web: 0, friend: 0, support: 0 }; // Track unread messages per tab
     let adminUser = { id: 'admin', name: 'Admin', color: '#E74C3C' };
     let hasSetGuestName = false; // Track if guest has set their name
     let hasSetGuestEmail = false; // Track if guest has set their email
@@ -708,12 +709,7 @@
             chip.title = `${cursor.user.name} (${users.length} online)`;
             chip.dataset.userId = cursor.user.id;
             
-            // Add unread indicator if there are unread messages
-            if (unreadCount > 0) {
-                const unreadDot = document.createElement('div');
-                unreadDot.className = 'surf-avatar-unread';
-                chip.appendChild(unreadDot);
-            }
+            // Avatar unread indicators removed - notifications only on chat icon
             
             avatarDock.appendChild(chip);
         });
@@ -749,7 +745,10 @@
         if (chatDrawer.classList.contains('open')) {
             chatInput.focus();
             unreadCount = 0;
+            // Clear all tab unread counts when chat is opened
+            tabUnreadCounts = { web: 0, friend: 0, support: 0 };
             updateUnreadBadge();
+            updateTabBadges();
         }
     }
     
@@ -763,6 +762,9 @@
         }
         
         currentTab = tabName;
+        
+        // Clear unread count for this tab when clicked
+        clearTabUnread(tabName);
         
         // Update tab active states
         chatTabs.forEach(tab => {
@@ -1982,7 +1984,16 @@
         // Update unread count if chat is closed
         if (!chatDrawer.classList.contains('open')) {
             unreadCount++;
+            // Increment unread count for the appropriate tab
+            if (data.type === 'individual-chat') {
+                tabUnreadCounts.friend++;
+            } else if (data.type === 'support-chat' || data.type === 'admin-support-reply') {
+                tabUnreadCounts.support++;
+            } else {
+                tabUnreadCounts.web++; // Web chat messages
+            }
             updateUnreadBadge();
+            updateTabBadges();
         }
         
         updateAvatarDock();
@@ -2047,7 +2058,9 @@
         // Update unread count if chat is closed
         if (!chatDrawer.classList.contains('open')) {
             unreadCount++;
+            tabUnreadCounts.friend++;
             updateUnreadBadge();
+            updateTabBadges();
         }
     }
     
@@ -2080,6 +2093,14 @@
         if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
             console.log('Refreshing admin dashboard due to new support message');
             showAdminSupportDashboard();
+        }
+        
+        // Update unread count if chat is closed
+        if (!chatDrawer.classList.contains('open')) {
+            unreadCount++;
+            tabUnreadCounts.support++;
+            updateUnreadBadge();
+            updateTabBadges();
         }
     }
     
@@ -2142,7 +2163,9 @@
         // Update unread count if chat is closed
         if (!chatDrawer.classList.contains('open')) {
             unreadCount++;
+            tabUnreadCounts.support++;
             updateUnreadBadge();
+            updateTabBadges();
         }
         
         // Show notification
@@ -2211,6 +2234,33 @@
         } else {
             unreadBadge.style.display = 'none';
         }
+    }
+    
+    /**
+     * Update tab badges for unread messages
+     */
+    function updateTabBadges() {
+        Object.keys(tabUnreadCounts).forEach(tabName => {
+            const badge = document.querySelector(`.surf-tab-badge[data-tab="${tabName}"]`);
+            if (badge) {
+                const count = tabUnreadCounts[tabName];
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    /**
+     * Clear unread count for a specific tab
+     */
+    function clearTabUnread(tabName) {
+        tabUnreadCounts[tabName] = 0;
+        updateTabBadges();
+        updateUnreadBadge();
     }
     
     /**
