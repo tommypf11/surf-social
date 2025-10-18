@@ -97,13 +97,17 @@
         window.debugTabStructure = debugTabStructure;
         window.simulateMessage = function(tabType) {
             console.log('Simulating message for tab:', tabType);
+            // Always update tab badges regardless of chat state
+            tabUnreadCounts[tabType]++;
+            updateTabBadges();
+            
+            // Only update chat toggle badge when chat is closed
             if (!chatDrawer.classList.contains('open')) {
                 unreadCount++;
-                tabUnreadCounts[tabType]++;
                 updateUnreadBadge();
-                updateTabBadges();
-                console.log('Unread counts updated:', tabUnreadCounts);
             }
+            
+            console.log('Unread counts updated:', tabUnreadCounts);
         };
         
         // Load friend chat list if we're on the friend tab
@@ -1995,20 +1999,22 @@
             }
         }
         
-        // Update unread count if chat is closed
+        // Update unread count for chat toggle badge (only when chat is closed)
         if (!chatDrawer.classList.contains('open')) {
             unreadCount++;
-            // Increment unread count for the appropriate tab
-            if (data.type === 'individual-chat') {
-                tabUnreadCounts.friend++;
-            } else if (data.type === 'support-chat' || data.type === 'admin-support-reply') {
-                tabUnreadCounts.support++;
-            } else {
-                tabUnreadCounts.web++; // Web chat messages
-            }
             updateUnreadBadge();
-            updateTabBadges();
         }
+        
+        // Always update tab badges regardless of chat state
+        // Increment unread count for the appropriate tab
+        if (data.type === 'individual-chat') {
+            tabUnreadCounts.friend++;
+        } else if (data.type === 'support-chat' || data.type === 'admin-support-reply') {
+            tabUnreadCounts.support++;
+        } else {
+            tabUnreadCounts.web++; // Web chat messages
+        }
+        updateTabBadges();
         
         updateAvatarDock();
     }
@@ -2069,13 +2075,15 @@
             showFriendChatList();
         }
         
-        // Update unread count if chat is closed
+        // Update unread count for chat toggle badge (only when chat is closed)
         if (!chatDrawer.classList.contains('open')) {
             unreadCount++;
-            tabUnreadCounts.friend++;
             updateUnreadBadge();
-            updateTabBadges();
         }
+        
+        // Always update tab badges regardless of chat state
+        tabUnreadCounts.friend++;
+        updateTabBadges();
     }
     
     /**
@@ -2109,13 +2117,15 @@
             showAdminSupportDashboard();
         }
         
-        // Update unread count if chat is closed
+        // Update unread count for chat toggle badge (only when chat is closed)
         if (!chatDrawer.classList.contains('open')) {
             unreadCount++;
-            tabUnreadCounts.support++;
             updateUnreadBadge();
-            updateTabBadges();
         }
+        
+        // Always update tab badges regardless of chat state
+        tabUnreadCounts.support++;
+        updateTabBadges();
     }
     
     /**
@@ -2174,13 +2184,15 @@
             showAdminSupportDashboard();
         }
         
-        // Update unread count if chat is closed
+        // Update unread count for chat toggle badge (only when chat is closed)
         if (!chatDrawer.classList.contains('open')) {
             unreadCount++;
-            tabUnreadCounts.support++;
             updateUnreadBadge();
-            updateTabBadges();
         }
+        
+        // Always update tab badges regardless of chat state
+        tabUnreadCounts.support++;
+        updateTabBadges();
         
         // Show notification
         showNotification('New support reply received!');
@@ -2295,7 +2307,7 @@
     function clearTabUnread(tabName) {
         tabUnreadCounts[tabName] = 0;
         updateTabBadges();
-        updateUnreadBadge();
+        // Don't update unread badge here - only clear specific tab
     }
     
     /**
@@ -2309,11 +2321,15 @@
         const allBadges = document.querySelectorAll('.surf-tab-badge');
         console.log('All badges found:', allBadges);
         
+        // Set test counts
         tabUnreadCounts.web = 3;
         tabUnreadCounts.friend = 2;
         tabUnreadCounts.support = 1;
+        
+        // Update badges (works regardless of chat state now)
         updateTabBadges();
         console.log('Tab counts set for testing:', tabUnreadCounts);
+        console.log('Chat drawer open:', chatDrawer.classList.contains('open'));
     }
     
     /**
