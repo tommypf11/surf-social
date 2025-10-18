@@ -1267,7 +1267,6 @@ jQuery(document).ready(function($) {
     // Support management functions
     function loadSupportTickets() {
         console.log('Loading support tickets...');
-        addDebugLog('Loading support tickets...', 'info');
         
         $.ajax({
             url: '<?php echo admin_url('admin-ajax.php'); ?>',
@@ -1279,21 +1278,17 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 console.log('Support tickets response:', response);
-                addDebugLog(`Support tickets response: ${JSON.stringify(response)}`, 'info');
                 
                 if (response.success) {
                     currentSupportTickets = response.data.tickets;
                     console.log('Found tickets:', currentSupportTickets.length);
-                    addDebugLog(`Found ${currentSupportTickets.length} tickets`, 'info');
                     displaySupportTickets();
                 } else {
                     console.error('Error loading support tickets:', response.data);
-                    addDebugLog(`Error loading support tickets: ${response.data}`, 'error');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('AJAX error loading support tickets:', error, xhr.responseText);
-                addDebugLog(`AJAX error loading support tickets: ${error}`, 'error');
             }
         });
     }
@@ -1556,7 +1551,6 @@ jQuery(document).ready(function($) {
     // Test support chat functionality
     function testSupportChat() {
         console.log('Testing support chat functionality...');
-        addDebugLog('Starting support chat test', 'info');
         
         // Test 1: Send a test message
         const testUserId = 'test_' + Date.now();
@@ -1564,8 +1558,6 @@ jQuery(document).ready(function($) {
         
         console.log('Sending test message to user:', testUserId);
         console.log('Test message:', testMessage);
-        addDebugLog(`Sending test message to user: ${testUserId}`, 'info');
-        addDebugLog(`Test message: ${testMessage}`, 'info');
         
         $.ajax({
             url: '<?php echo admin_url('admin-ajax.php'); ?>',
@@ -1578,10 +1570,8 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 console.log('Test message sent:', response);
-                addDebugLog(`Test message response: ${JSON.stringify(response)}`, 'info');
                 
                 if (response.success) {
-                    addDebugLog('Test message sent successfully', 'success');
                     alert('✅ Test message sent successfully! Check the tickets list and WordPress error logs for broadcast details.');
                     // Reload tickets to see the test message
                     loadSupportTickets();
@@ -1591,15 +1581,12 @@ jQuery(document).ready(function($) {
                         testMessageRetrieval(testUserId);
                     }, 1000);
                 } else {
-                    addDebugLog(`Test failed: ${response.data}`, 'error');
                     alert('❌ Test failed: ' + response.data);
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Test error:', error);
                 console.error('Response:', xhr.responseText);
-                addDebugLog(`Test error: ${error}`, 'error');
-                addDebugLog(`Response: ${xhr.responseText}`, 'error');
                 alert('❌ Test failed: ' + error);
             }
         });
@@ -1636,99 +1623,97 @@ jQuery(document).ready(function($) {
             }
         });
     }
+});
+
+// Debug panel functionality (outside jQuery ready)
+let debugLog = [];
+
+function addDebugLog(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = {
+        timestamp: timestamp,
+        message: message,
+        type: type
+    };
+    debugLog.push(logEntry);
     
-    // Debug panel functionality
-    let debugLog = [];
-    
-    function addDebugLog(message, type = 'info') {
-        const timestamp = new Date().toLocaleTimeString();
-        const logEntry = {
-            timestamp: timestamp,
-            message: message,
-            type: type
-        };
-        debugLog.push(logEntry);
-        
-        // Keep only last 100 entries
-        if (debugLog.length > 100) {
-            debugLog = debugLog.slice(-100);
-        }
-        
-        updateDebugDisplay();
+    // Keep only last 100 entries
+    if (debugLog.length > 100) {
+        debugLog = debugLog.slice(-100);
     }
     
-    function updateDebugDisplay() {
-        const configDiv = document.getElementById('debug-config');
-        const activityDiv = document.getElementById('debug-activity');
-        
-        // Update configuration
-        configDiv.innerHTML = `
-            <div><strong>Pusher Key:</strong> <?php echo get_option('surf_social_pusher_key', 'Not set'); ?></div>
-            <div><strong>Pusher Cluster:</strong> <?php echo get_option('surf_social_pusher_cluster', 'Not set'); ?></div>
-            <div><strong>Use Pusher:</strong> <?php echo get_option('surf_social_use_pusher', 'Not set'); ?></div>
-            <div><strong>WebSocket URL:</strong> <?php echo get_option('surf_social_websocket_url', 'Not set'); ?></div>
-            <div><strong>Current User:</strong> <?php echo wp_get_current_user()->user_login; ?></div>
-        `;
-        
-        // Update activity log
-        activityDiv.innerHTML = debugLog.map(entry => 
-            `<div style="color: ${entry.type === 'error' ? 'red' : entry.type === 'success' ? 'green' : 'black'}">
-                [${entry.timestamp}] ${entry.message}
-            </div>`
-        ).join('');
-        
-        // Scroll to bottom
-        activityDiv.scrollTop = activityDiv.scrollHeight;
-    }
+    updateDebugDisplay();
+}
+
+function updateDebugDisplay() {
+    const configDiv = document.getElementById('debug-config');
+    const activityDiv = document.getElementById('debug-activity');
     
+    if (!configDiv || !activityDiv) return;
+    
+    // Update configuration
+    configDiv.innerHTML = `
+        <div><strong>Pusher Key:</strong> <?php echo get_option('surf_social_pusher_key', 'Not set'); ?></div>
+        <div><strong>Pusher Cluster:</strong> <?php echo get_option('surf_social_pusher_cluster', 'Not set'); ?></div>
+        <div><strong>Use Pusher:</strong> <?php echo get_option('surf_social_use_pusher', 'Not set'); ?></div>
+        <div><strong>WebSocket URL:</strong> <?php echo get_option('surf_social_websocket_url', 'Not set'); ?></div>
+        <div><strong>Current User:</strong> <?php echo wp_get_current_user()->user_login; ?></div>
+    `;
+    
+    // Update activity log
+    activityDiv.innerHTML = debugLog.map(entry => 
+        `<div style="color: ${entry.type === 'error' ? 'red' : entry.type === 'success' ? 'green' : 'black'}">
+            [${entry.timestamp}] ${entry.message}
+        </div>`
+    ).join('');
+    
+    // Scroll to bottom
+    activityDiv.scrollTop = activityDiv.scrollHeight;
+}
+
+// Initialize debug panel when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
     // Show/hide debug panel
-    $('#show-debug-panel').on('click', function() {
-        $('#debug-panel').show();
-        updateDebugDisplay();
-    });
+    const showDebugBtn = document.getElementById('show-debug-panel');
+    const closeDebugBtn = document.getElementById('close-debug-panel');
+    const clearDebugBtn = document.getElementById('clear-debug-log');
+    const exportDebugBtn = document.getElementById('export-debug-log');
     
-    $('#close-debug-panel').on('click', function() {
-        $('#debug-panel').hide();
-    });
+    if (showDebugBtn) {
+        showDebugBtn.addEventListener('click', function() {
+            document.getElementById('debug-panel').style.display = 'block';
+            updateDebugDisplay();
+        });
+    }
     
-    // Clear debug log
-    $('#clear-debug-log').on('click', function() {
-        debugLog = [];
-        updateDebugDisplay();
-    });
+    if (closeDebugBtn) {
+        closeDebugBtn.addEventListener('click', function() {
+            document.getElementById('debug-panel').style.display = 'none';
+        });
+    }
     
-    // Export debug log
-    $('#export-debug-log').on('click', function() {
-        const logText = debugLog.map(entry => 
-            `[${entry.timestamp}] ${entry.type.toUpperCase()}: ${entry.message}`
-        ).join('\n');
-        
-        const blob = new Blob([logText], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'surf-social-debug-log.txt';
-        a.click();
-        URL.revokeObjectURL(url);
-    });
+    if (clearDebugBtn) {
+        clearDebugBtn.addEventListener('click', function() {
+            debugLog = [];
+            updateDebugDisplay();
+        });
+    }
     
-    // Override console.log to capture debug info
-    const originalConsoleLog = console.log;
-    console.log = function(...args) {
-        originalConsoleLog.apply(console, args);
-        if (args[0] && typeof args[0] === 'string' && args[0].includes('Surf Social')) {
-            addDebugLog(args.join(' '), 'info');
-        }
-    };
-    
-    // Override console.error to capture errors
-    const originalConsoleError = console.error;
-    console.error = function(...args) {
-        originalConsoleError.apply(console, args);
-        if (args[0] && typeof args[0] === 'string' && args[0].includes('Surf Social')) {
-            addDebugLog(args.join(' '), 'error');
-        }
-    };
+    if (exportDebugBtn) {
+        exportDebugBtn.addEventListener('click', function() {
+            const logText = debugLog.map(entry => 
+                `[${entry.timestamp}] ${entry.type.toUpperCase()}: ${entry.message}`
+            ).join('\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'surf-social-debug-log.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    }
     
     // Add initial debug log
     addDebugLog('Debug panel initialized', 'info');
