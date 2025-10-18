@@ -765,8 +765,11 @@
         // Clear current chat user when switching tabs
         currentChatUser = null;
         
-        // Stop any existing auto-refresh
-        stopSupportAutoRefresh();
+        // Clear chat messages container to prevent showing wrong data
+        chatMessages.innerHTML = '';
+        
+        // Clear any existing refresh intervals
+        // (Auto-refresh has been removed in favor of real-time updates)
         
         // Show appropriate content based on tab
         if (tabName === 'friend') {
@@ -1782,10 +1785,12 @@
         } else if (data.type === 'admin-support-reply') {
             handleAdminSupportReply(data);
         } else {
-            // Web chat message
-            const messageEl = createMessageElement(msg);
-            chatMessages.appendChild(messageEl);
-            scrollToBottom();
+            // Web chat message - only show if we're currently viewing web chat
+            if (currentTab === 'web') {
+                const messageEl = createMessageElement(msg);
+                chatMessages.appendChild(messageEl);
+                scrollToBottom();
+            }
         }
         
         // Update unread count if chat is closed
