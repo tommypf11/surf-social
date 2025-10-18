@@ -73,6 +73,9 @@
             showFriendChatList();
         }
         
+        // Pre-load all historical conversations on page load
+        loadAllHistoricalConversations();
+        
         // Set up periodic refresh of friend list
         setInterval(() => {
             if (currentTab === 'friend' && !currentChatUser) {
@@ -829,6 +832,37 @@
     }
     
     /**
+     * Load all historical conversations on page load
+     */
+    async function loadAllHistoricalConversations() {
+        try {
+            console.log('Loading all historical conversations on page load');
+            
+            const response = await fetch(`${config.apiUrl}chat/individual/load-conversations?user_id=${config.currentUser.id}`, {
+                headers: {
+                    'X-WP-Nonce': config.nonce
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.conversations && data.conversations.length > 0) {
+                    console.log('Found', data.conversations.length, 'historical conversations');
+                    
+                    // Load messages for each conversation
+                    for (const conv of data.conversations) {
+                        if (conv.other_user_id && conv.other_user_name) {
+                            await loadConversationMessages(conv.other_user_id, conv.other_user_name);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load all historical conversations:', error);
+        }
+    }
+    
+    /**
      * Load historical conversations
      */
     async function loadHistoricalConversations() {
@@ -869,11 +903,47 @@
                             // Add to currentUsers temporarily for display
                             currentUsers.set(conv.other_user_id, virtualCursor);
                         }
+                        
+                        // Pre-load the conversation messages for this user
+                        loadConversationMessages(conv.other_user_id, conv.other_user_name);
                     });
                 }
             }
         } catch (error) {
             console.error('Failed to load historical conversations:', error);
+        }
+    }
+    
+    /**
+     * Load conversation messages for a user (background loading)
+     */
+    async function loadConversationMessages(userId, userName) {
+        try {
+            console.log('Pre-loading conversation messages for user:', userId);
+            
+            const response = await fetch(`${config.apiUrl}chat/individual?user_id=${config.currentUser.id}&target_user_id=${userId}`, {
+                headers: {
+                    'X-WP-Nonce': config.nonce
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.messages && data.messages.length > 0) {
+                    // Validate and clean message data
+                    const validMessages = data.messages.filter(msg => {
+                        return msg && msg.user_name && msg.message && msg.created_at;
+                    });
+                    
+                    if (validMessages.length > 0) {
+                        // Store messages in individualChats for quick access
+                        individualChats.set(userId, validMessages);
+                        console.log('Pre-loaded', validMessages.length, 'messages for user:', userId);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to pre-load conversation messages for user', userId, ':', error);
         }
     }
     
@@ -1014,8 +1084,15 @@
             chatInput.placeholder = `Message ${user.name}...`;
         }
         
-        // Load messages for this user
-        loadIndividualChatMessages(user);
+        // Check if we already have messages for this user
+        if (individualChats.has(user.id) && individualChats.get(user.id).length > 0) {
+            console.log('Loading cached messages for user:', user.id);
+            renderMessages(individualChats.get(user.id));
+        } else {
+            console.log('Loading fresh messages for user:', user.id);
+            // Load messages for this user
+            loadIndividualChatMessages(user);
+        }
     }
     
     /**
