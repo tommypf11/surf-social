@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.86
+Version: 1.0.87
 Author: Thomas Fraher
 */
 
@@ -963,6 +963,9 @@ class Surf_Social {
         error_log("Surf Social Debug - Found " . count($tickets) . " tickets");
         if (count($tickets) > 0) {
             error_log("Surf Social Debug - First ticket: " . print_r($tickets[0], true));
+            foreach ($tickets as $ticket) {
+                error_log("Surf Social Debug - Ticket: " . $ticket['user_name'] . " - is_read_by_admin: " . $ticket['is_read_by_admin']);
+            }
         }
         
         return new WP_REST_Response(array('tickets' => $tickets), 200);

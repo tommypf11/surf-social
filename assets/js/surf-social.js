@@ -1883,8 +1883,8 @@
         }
         individualChats.get('admin').push(msg);
         
-        // If we're currently viewing support chat, show the message
-        if (currentTab === 'support' && currentChatUser) {
+        // If we're currently viewing a specific support conversation, show the message
+        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin') {
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
@@ -1921,8 +1921,8 @@
         }
         individualChats.get('admin').push(msg);
         
-        // If we're currently viewing support chat, show the message
-        if (currentTab === 'support' && currentChatUser) {
+        // If we're currently viewing a specific support conversation, show the message
+        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin') {
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
@@ -2448,8 +2448,14 @@
         // Reset title to normal
         const title = document.querySelector('.surf-chat-title');
         if (title) {
-            title.textContent = 'Admin Support Dashboard';
+            title.textContent = 'Support Chats';
         }
+        
+        // Hide input and send button on admin dashboard
+        const chatInput = document.querySelector('.surf-chat-input');
+        const chatSend = document.querySelector('.surf-chat-send');
+        if (chatInput) chatInput.style.display = 'none';
+        if (chatSend) chatSend.style.display = 'none';
         
         chatMessages.innerHTML = '<div class="surf-loading">Loading support tickets...</div>';
         
@@ -2578,11 +2584,20 @@
                 // Add event listener for back button
                 const backBtn = document.getElementById('admin-back-btn');
                 if (backBtn) {
-                    backBtn.addEventListener('click', () => {
+                    backBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Back button clicked, returning to admin dashboard');
                         showAdminSupportDashboard();
                     });
                 }
             }
+            
+            // Show input and send button for conversation
+            const chatInput = document.querySelector('.surf-chat-input');
+            const chatSend = document.querySelector('.surf-chat-send');
+            if (chatInput) chatInput.style.display = 'flex';
+            if (chatSend) chatSend.style.display = 'flex';
             
             // Display conversation
             displayAdminSupportConversation(data.messages, data.user_info);
