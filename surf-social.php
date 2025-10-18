@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.60
+Version: 1.0.61
 Author: Thomas Fraher
 */
 
@@ -59,6 +59,10 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_user_submissions', array($this, 'ajax_get_user_submissions'));
         add_action('wp_ajax_surf_social_get_messages', array($this, 'ajax_get_messages'));
         add_action('wp_ajax_surf_social_delete_message', array($this, 'ajax_delete_message'));
+        add_action('wp_ajax_surf_social_get_support_tickets', array($this, 'ajax_get_support_tickets'));
+        add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
+        add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
+        add_action('wp_ajax_surf_social_mark_support_read', array($this, 'ajax_mark_support_read'));
     }
     
     /**
@@ -676,19 +680,40 @@ class Surf_Social {
             return new WP_Error('invalid_data', 'Message and user ID are required', array('status' => 400));
         }
         
-        $result = $wpdb->insert(
-            $table_name,
-            array(
-                'user_id' => $user_id,
-                'user_name' => sanitize_text_field($user_name),
-                'admin_id' => $admin_id,
-                'admin_name' => sanitize_text_field($admin_name),
-                'message' => sanitize_textarea_field($message),
-                'message_type' => sanitize_text_field($message_type),
-                'created_at' => current_time('mysql')
-            ),
-            array('%d', '%s', '%d', '%s', '%s', '%s', '%s')
-        );
+        // Convert user_id to string if it's a guest user
+        if (is_string($user_id) && strpos($user_id, 'guest_') === 0) {
+            // For guest users, we need to handle the user_id as a string
+            $result = $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => $user_id,
+                    'user_name' => sanitize_text_field($user_name),
+                    'admin_id' => $admin_id,
+                    'admin_name' => sanitize_text_field($admin_name),
+                    'message' => sanitize_textarea_field($message),
+                    'message_type' => sanitize_text_field($message_type),
+                    'status' => 'open',
+                    'created_at' => current_time('mysql')
+                ),
+                array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
+            );
+        } else {
+            // For regular users, use integer
+            $result = $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => intval($user_id),
+                    'user_name' => sanitize_text_field($user_name),
+                    'admin_id' => $admin_id,
+                    'admin_name' => sanitize_text_field($admin_name),
+                    'message' => sanitize_textarea_field($message),
+                    'message_type' => sanitize_text_field($message_type),
+                    'status' => 'open',
+                    'created_at' => current_time('mysql')
+                ),
+                array('%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
+            );
+        }
         
         if ($result) {
             $message_id = $wpdb->insert_id;
@@ -977,6 +1002,162 @@ class Surf_Social {
     }
     
     /**
+     * AJAX handler for getting support tickets
+     */
+    public function ajax_get_support_tickets() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $tickets = $wpdb->get_results(
+            "SELECT 
+                user_id,
+                user_name,
+                MAX(created_at) as last_message_time,
+                COUNT(*) as message_count,
+                status,
+                CASE 
+                    WHEN MAX(admin_id) IS NOT NULL THEN 1 
+                    ELSE 0 
+                END as is_read_by_admin
+            FROM $table_name 
+            GROUP BY user_id, user_name, status
+            ORDER BY last_message_time DESC",
+            ARRAY_A
+        );
+        
+        wp_send_json_success(array('tickets' => $tickets));
+    }
+    
+    /**
+     * AJAX handler for getting support conversation
+     */
+    public function ajax_get_support_conversation() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $user_id = sanitize_text_field($_GET['user_id']);
+        if (!$user_id) {
+            wp_send_json_error('User ID is required');
+        }
+        
+        $messages = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $table_name 
+                WHERE user_id = %s 
+                ORDER BY created_at ASC",
+                $user_id
+            ),
+            ARRAY_A
+        );
+        
+        // Get user info
+        $user_info = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT user_name, user_id FROM $table_name WHERE user_id = %s LIMIT 1",
+                $user_id
+            ),
+            ARRAY_A
+        );
+        
+        wp_send_json_success(array(
+            'messages' => $messages,
+            'user_info' => $user_info
+        ));
+    }
+    
+    /**
+     * AJAX handler for sending admin reply
+     */
+    public function ajax_send_admin_reply() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $user_id = sanitize_text_field($_POST['user_id']);
+        $message = sanitize_textarea_field($_POST['message']);
+        $admin_id = get_current_user_id();
+        $admin_name = wp_get_current_user()->display_name ?: wp_get_current_user()->user_login;
+        
+        if (!$user_id || !$message) {
+            wp_send_json_error('User ID and message are required');
+        }
+        
+        $result = $wpdb->insert(
+            $table_name,
+            array(
+                'user_id' => $user_id,
+                'user_name' => '', // Will be filled from existing messages
+                'admin_id' => $admin_id,
+                'admin_name' => $admin_name,
+                'message' => $message,
+                'message_type' => 'admin',
+                'status' => 'open',
+                'created_at' => current_time('mysql')
+            ),
+            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
+        );
+        
+        if ($result) {
+            wp_send_json_success('Reply sent successfully');
+        } else {
+            wp_send_json_error('Failed to send reply');
+        }
+    }
+    
+    /**
+     * AJAX handler for marking support as read
+     */
+    public function ajax_mark_support_read() {
+        check_ajax_referer('surf_social_stats', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $user_id = sanitize_text_field($_POST['user_id']);
+        if (!$user_id) {
+            wp_send_json_error('User ID is required');
+        }
+        
+        // Update all messages for this user to mark them as read by admin
+        $result = $wpdb->update(
+            $table_name,
+            array(
+                'admin_id' => get_current_user_id(),
+                'admin_name' => wp_get_current_user()->display_name ?: wp_get_current_user()->user_login
+            ),
+            array(
+                'user_id' => $user_id,
+                'admin_id' => null
+            ),
+            array('%d', '%s'),
+            array('%s', 'NULL')
+        );
+        
+        wp_send_json_success('Marked as read');
+    }
+    
+    /**
      * Get plugin statistics
      */
     public function get_stats($request) {
@@ -1118,7 +1299,7 @@ class Surf_Social {
         $table_name = $wpdb->prefix . 'surf_social_support_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            user_id bigint(20) NOT NULL,
+            user_id varchar(100) NOT NULL,
             user_name varchar(100) NOT NULL,
             admin_id bigint(20) NULL,
             admin_name varchar(100) NULL,
