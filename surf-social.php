@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.79
+Version: 1.0.80
 Author: Thomas Fraher
 */
 
@@ -906,7 +906,7 @@ class Surf_Social {
                 COUNT(*) as message_count,
                 status,
                 CASE 
-                    WHEN MAX(admin_id) IS NOT NULL THEN 1 
+                    WHEN MAX(admin_read_at) IS NOT NULL THEN 1 
                     ELSE 0 
                 END as is_read_by_admin,
                 (SELECT message FROM $table_name t2 
@@ -1025,14 +1025,13 @@ class Surf_Social {
         $result = $wpdb->update(
             $table_name,
             array(
-                'admin_id' => get_current_user_id(),
-                'admin_name' => wp_get_current_user()->display_name ?: wp_get_current_user()->user_login
+                'admin_read_at' => current_time('mysql')
             ),
             array(
                 'user_id' => $user_id,
-                'admin_id' => null
+                'admin_read_at' => null
             ),
-            array('%d', '%s'),
+            array('%s'),
             array('%s', 'NULL')
         );
         
@@ -1460,7 +1459,7 @@ class Surf_Social {
                 COUNT(*) as message_count,
                 status,
                 CASE 
-                    WHEN MAX(admin_id) IS NOT NULL THEN 1 
+                    WHEN MAX(admin_read_at) IS NOT NULL THEN 1 
                     ELSE 0 
                 END as is_read_by_admin,
                 (SELECT message FROM $table_name t2 
@@ -2029,14 +2028,19 @@ class Surf_Social {
             message text NOT NULL,
             message_type enum('user', 'admin') DEFAULT 'user',
             status enum('open', 'closed', 'resolved') DEFAULT 'open',
+            admin_read_at datetime NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY user_id (user_id),
             KEY admin_id (admin_id),
             KEY status (status),
-            KEY created_at (created_at)
+            KEY created_at (created_at),
+            KEY admin_read_at (admin_read_at)
         ) $charset_collate;";
         dbDelta($sql);
+        
+        // Add admin_read_at column to existing tables if it doesn't exist
+        $this->add_admin_read_at_column();
         
         // Guest users table
         $table_name = $wpdb->prefix . 'surf_social_guests';
@@ -2061,6 +2065,22 @@ class Surf_Social {
         add_option('surf_social_pusher_secret', '15a73a9dbb0a4884f6fa');
         add_option('surf_social_pusher_cluster', 'us3');
         add_option('surf_social_websocket_url', '');
+    }
+    
+    /**
+     * Add admin_read_at column to support messages table
+     */
+    private function add_admin_read_at_column() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        // Check if column exists
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'admin_read_at'");
+        
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN admin_read_at datetime NULL AFTER status");
+            $wpdb->query("ALTER TABLE $table_name ADD KEY admin_read_at (admin_read_at)");
+        }
     }
     
     /**

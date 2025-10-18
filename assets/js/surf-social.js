@@ -76,12 +76,7 @@
         // Pre-load all historical conversations on page load
         loadAllHistoricalConversations();
         
-        // Set up periodic refresh of friend list
-        setInterval(() => {
-            if (currentTab === 'friend' && !currentChatUser) {
-                showFriendChatList();
-            }
-        }, 5000); // Refresh every 5 seconds
+        // Friend list will be updated via real-time events instead of polling
         
         // Also refresh friend list when real-time connection is established
         setTimeout(() => {
@@ -274,6 +269,7 @@
             channel.bind('client-user-left', handleUserLeft);
             channel.bind('client-individual-message', handleIndividualMessage);
             channel.bind('client-support-message', handleSupportMessage);
+            channel.bind('client-admin-support-reply', handleAdminSupportReply);
             channel.bind('client-message-deleted', handleMessageDeleted);
             
             // Refresh friend list after connection is established
@@ -1208,8 +1204,7 @@
             // Load support messages
             loadSupportMessages();
             
-            // Start auto-refresh for support chat
-            startSupportAutoRefresh();
+            // Support chat will be updated via real-time events
         }
     }
     
@@ -1889,6 +1884,11 @@
             chatMessages.appendChild(messageEl);
             scrollToBottom();
         }
+        
+        // Update admin dashboard if it's visible
+        if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
+            showAdminSupportDashboard();
+        }
     }
     
     /**
@@ -1920,6 +1920,11 @@
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
+        }
+        
+        // Update admin dashboard if it's visible
+        if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
+            showAdminSupportDashboard();
         }
         
         // Update unread count if chat is closed
@@ -2428,30 +2433,6 @@
         }
     }, 60000); // Check every minute
     
-    /**
-     * Start auto-refresh for support chat
-     */
-    function startSupportAutoRefresh() {
-        // Clear any existing interval
-        stopSupportAutoRefresh();
-        
-        // Refresh support messages every 3 seconds
-        supportRefreshInterval = setInterval(() => {
-            if (currentTab === 'support') {
-                loadSupportMessages();
-            }
-        }, 3000);
-    }
-    
-    /**
-     * Stop auto-refresh for support chat
-     */
-    function stopSupportAutoRefresh() {
-        if (supportRefreshInterval) {
-            clearInterval(supportRefreshInterval);
-            supportRefreshInterval = null;
-        }
-    }
     
     /**
      * Show Admin Support Dashboard
@@ -2479,8 +2460,7 @@
                 chatMessages.innerHTML = '<div class="surf-empty-state"><p>No support tickets found</p></div>';
             }
             
-            // Start auto-refresh for admin dashboard
-            startAdminSupportAutoRefresh();
+            // Admin dashboard will be updated via real-time events
             
         } catch (error) {
             console.error('Failed to load support tickets:', error);
@@ -2642,23 +2622,6 @@
         }
     }
     
-    /**
-     * Start Admin Support Auto-refresh
-     */
-    function startAdminSupportAutoRefresh() {
-        // Clear any existing interval
-        stopSupportAutoRefresh();
-        
-        // Refresh admin dashboard every 5 seconds
-        supportRefreshInterval = setInterval(() => {
-            if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
-                showAdminSupportDashboard();
-            } else if (currentTab === 'support' && config.currentUser.isAdmin && currentChatUser) {
-                // Refresh current conversation
-                loadAdminSupportConversation(currentChatUser.id);
-            }
-        }, 5000);
-    }
     
     /**
      * Format Time Ago
