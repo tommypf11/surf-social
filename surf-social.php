@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.83
+Version: 1.0.84
 Author: Thomas Fraher
 */
 
@@ -1067,19 +1067,45 @@ class Surf_Social {
             return new WP_Error('missing_params', 'User ID is required', array('status' => 400));
         }
         
-        // Update all unread messages for this user to mark them as read by admin
-        $result = $wpdb->update(
-            $table_name,
-            array(
-                'admin_read_at' => current_time('mysql')
-            ),
-            array(
-                'user_id' => $user_id,
-                'admin_read_at' => null
-            ),
-            array('%s'),
-            array('%s', 'NULL')
-        );
+        // Debug logging
+        error_log("Surf Social Debug - mark_admin_support_read called for user_id: " . $user_id);
+        
+        // Check if admin_read_at column exists
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'admin_read_at'");
+        $has_admin_read_at = !empty($column_exists);
+        
+        if ($has_admin_read_at) {
+            // Update all unread messages for this user to mark them as read by admin
+            $result = $wpdb->update(
+                $table_name,
+                array(
+                    'admin_read_at' => current_time('mysql')
+                ),
+                array(
+                    'user_id' => $user_id,
+                    'admin_read_at' => null
+                ),
+                array('%s'),
+                array('%s', 'NULL')
+            );
+        } else {
+            // Fallback: update admin_id for backward compatibility
+            $result = $wpdb->update(
+                $table_name,
+                array(
+                    'admin_id' => get_current_user_id(),
+                    'admin_name' => wp_get_current_user()->display_name ?: wp_get_current_user()->user_login
+                ),
+                array(
+                    'user_id' => $user_id,
+                    'admin_id' => null
+                ),
+                array('%d', '%s'),
+                array('%s', 'NULL')
+            );
+        }
+        
+        error_log("Surf Social Debug - mark_admin_support_read result: " . ($result !== false ? $result : 'false'));
         
         // Also update any messages that don't have admin_id set (for backward compatibility)
         $wpdb->update(

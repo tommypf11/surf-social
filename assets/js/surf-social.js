@@ -2581,12 +2581,11 @@
     function displayAdminSupportConversation(messages, userInfo) {
         let html = '<div class="surf-admin-conversation">';
         
-        // Add back button
+        // Add back button inline with title
         html += `
-            <div class="surf-admin-back-button">
-                <button onclick="showAdminSupportDashboard()" class="surf-back-btn">
-                    ← Back to All Chats
-                </button>
+            <div class="surf-admin-back-header">
+                <button class="surf-back-arrow" id="admin-back-btn">←</button>
+                <span class="surf-admin-chat-title">Support Chat - ${userInfo.user_name}</span>
             </div>
         `;
         
@@ -2614,10 +2613,23 @@
         html += '</div>';
         chatMessages.innerHTML = html;
         
-        // Scroll to bottom with a small delay to ensure DOM is updated
+        // Add event listener for back button
+        const backBtn = document.getElementById('admin-back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                showAdminSupportDashboard();
+            });
+        }
+        
+        // Scroll to bottom with a longer delay to ensure DOM is fully updated
         setTimeout(() => {
             chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 100);
+        }, 300);
+        
+        // Also try scrolling after a longer delay as backup
+        setTimeout(() => {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 500);
         
         // Update current chat user for sending messages
         currentChatUser = {
@@ -2637,7 +2649,7 @@
      */
     async function markSupportAsRead(userId) {
         try {
-            await fetch(`${config.apiUrl}chat/support/admin/mark-read`, {
+            const response = await fetch(`${config.apiUrl}chat/support/admin/mark-read`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2645,6 +2657,16 @@
                 },
                 body: JSON.stringify({ user_id: userId })
             });
+            
+            if (response.ok) {
+                console.log('Successfully marked support as read for user:', userId);
+                // Refresh the admin dashboard to update unread status
+                if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
+                    showAdminSupportDashboard();
+                }
+            } else {
+                console.error('Failed to mark support as read:', response.status, response.statusText);
+            }
         } catch (error) {
             console.error('Failed to mark support as read:', error);
         }
