@@ -664,7 +664,7 @@ class Surf_Social {
     }
     
     /**
-     * Get individual chat conversations
+     * Get individual chat conversations (unified function)
      */
     public function get_individual_conversations($request) {
         global $wpdb;
@@ -676,48 +676,13 @@ class Surf_Social {
             return new WP_Error('missing_params', 'User ID is required', array('status' => 400));
         }
         
-        $conversations = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT 
-                    CASE 
-                        WHEN sender_id = %d THEN recipient_id 
-                        ELSE sender_id 
-                    END as other_user_id,
-                    CASE 
-                        WHEN sender_id = %d THEN recipient_name 
-                        ELSE sender_name 
-                    END as other_user_name,
-                    MAX(created_at) as last_message_time,
-                    (SELECT message FROM $table_name 
-                     WHERE ((sender_id = %d AND recipient_id = other_user_id) 
-                            OR (sender_id = other_user_id AND recipient_id = %d))
-                     ORDER BY created_at DESC LIMIT 1) as last_message
-                FROM $table_name 
-                WHERE sender_id = %d OR recipient_id = %d
-                GROUP BY other_user_id, other_user_name
-                ORDER BY last_message_time DESC",
-                $user_id, $user_id, $user_id, $user_id, $user_id, $user_id
-            ),
-            ARRAY_A
-        );
-        
-        return new WP_REST_Response(array('conversations' => $conversations), 200);
-    }
-    
-    /**
-     * Load user conversations for friend chat
-     */
-    public function load_user_conversations($request) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'surf_social_individual_messages';
-        
-        $user_id = $request->get_param('user_id');
-        
-        if (empty($user_id)) {
-            return new WP_Error('missing_params', 'User ID is required', array('status' => 400));
+        // Check if table exists
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+        if (!$table_exists) {
+            return new WP_REST_Response(array('conversations' => array()), 200);
         }
         
-        // Get all unique conversations for this user
+        // Optimized query with proper indexing
         $conversations = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT 
@@ -730,12 +695,13 @@ class Surf_Social {
                         ELSE sender_name 
                     END as other_user_name,
                     MAX(created_at) as last_message_time,
-                    (SELECT message FROM $table_name 
-                     WHERE ((sender_id = %s AND recipient_id = other_user_id) 
-                            OR (sender_id = other_user_id AND recipient_id = %s))
-                     ORDER BY created_at DESC LIMIT 1) as last_message
-                FROM $table_name 
-                WHERE sender_id = %s OR recipient_id = %s
+                    (SELECT message FROM $table_name t2
+                     WHERE ((t2.sender_id = %s AND t2.recipient_id = other_user_id) 
+                            OR (t2.sender_id = other_user_id AND t2.recipient_id = %s))
+                     ORDER BY t2.created_at DESC LIMIT 1) as last_message,
+                    COUNT(*) as message_count
+                FROM $table_name t1
+                WHERE (t1.sender_id = %s OR t1.recipient_id = %s)
                 GROUP BY other_user_id, other_user_name
                 ORDER BY last_message_time DESC",
                 $user_id, $user_id, $user_id, $user_id, $user_id, $user_id
@@ -744,6 +710,13 @@ class Surf_Social {
         );
         
         return new WP_REST_Response(array('conversations' => $conversations), 200);
+    }
+    
+    /**
+     * Load user conversations for friend chat (alias for backward compatibility)
+     */
+    public function load_user_conversations($request) {
+        return $this->get_individual_conversations($request);
     }
     
     /**
@@ -807,7 +780,7 @@ class Surf_Social {
     }
     
     /**
-     * Save support message
+     * Save support message with threading support
      */
     public function save_support_message($request) {
         global $wpdb;
@@ -819,16 +792,10 @@ class Surf_Social {
         $message_type = $request->get_param('message_type') ?: 'user';
         $admin_id = $request->get_param('admin_id');
         $admin_name = $request->get_param('admin_name');
-        
-        // Debug logging
-        error_log("Surf Social Debug - save_support_message called");
-        error_log("Surf Social Debug - user_id: " . $user_id);
-        error_log("Surf Social Debug - user_name: " . $user_name);
-        error_log("Surf Social Debug - message: " . $message);
-        error_log("Surf Social Debug - message_type: " . $message_type);
+        $parent_message_id = $request->get_param('parent_message_id');
+        $thread_id = $request->get_param('thread_id');
         
         if (empty($message) || empty($user_id)) {
-            error_log("Surf Social Debug - Missing required parameters");
             return new WP_Error('invalid_data', 'Message and user ID are required', array('status' => 400));
         }
         
@@ -843,51 +810,57 @@ class Surf_Social {
             }
         }
         
-        // Convert user_id to string if it's a guest user
-        if (is_string($user_id) && strpos($user_id, 'guest_') === 0) {
-            // For guest users, we need to handle the user_id as a string
-            $result = $wpdb->insert(
-                $table_name,
-                array(
-                    'user_id' => $user_id,
-                    'user_name' => sanitize_text_field($user_name),
-                    'admin_id' => $admin_id,
-                    'admin_name' => sanitize_text_field($admin_name),
-                    'message' => sanitize_textarea_field($message),
-                    'message_type' => sanitize_text_field($message_type),
-                    'status' => 'open',
-                    'created_at' => current_time('mysql')
-                ),
-                array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
-            );
-        } else {
-            // For regular users, use integer
-            $result = $wpdb->insert(
-                $table_name,
-                array(
-                    'user_id' => intval($user_id),
-                    'user_name' => sanitize_text_field($user_name),
-                    'admin_id' => $admin_id,
-                    'admin_name' => sanitize_text_field($admin_name),
-                    'message' => sanitize_textarea_field($message),
-                    'message_type' => sanitize_text_field($message_type),
-                    'status' => 'open',
-                    'created_at' => current_time('mysql')
-                ),
-                array('%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
-            );
+        // Handle threading
+        $is_thread_starter = 0;
+        if (empty($thread_id)) {
+            // Create new thread
+            $thread_id = 'thread_' . $user_id . '_' . time();
+            $is_thread_starter = 1;
         }
+        
+        // Validate parent message if provided
+        if (!empty($parent_message_id)) {
+            $parent_exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table_name WHERE id = %d AND user_id = %s",
+                $parent_message_id, $user_id
+            ));
+            if (!$parent_exists) {
+                $parent_message_id = null;
+            }
+        }
+        
+        // Prepare data for insertion
+        $insert_data = array(
+            'user_id' => $user_id,
+            'user_name' => sanitize_text_field($user_name),
+            'admin_id' => $admin_id,
+            'admin_name' => sanitize_text_field($admin_name),
+            'message' => sanitize_textarea_field($message),
+            'message_type' => sanitize_text_field($message_type),
+            'status' => 'open',
+            'thread_id' => $thread_id,
+            'parent_message_id' => $parent_message_id,
+            'is_thread_starter' => $is_thread_starter,
+            'created_at' => current_time('mysql')
+        );
+        
+        $format = array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s');
+        
+        $result = $wpdb->insert($table_name, $insert_data, $format);
         
         if ($result) {
             $message_id = $wpdb->insert_id;
-            error_log("Surf Social Debug - Message saved successfully with ID: " . $message_id);
+            
+            // Broadcast support ticket update to admin
+            $this->broadcast_support_ticket_update($user_id, 'new_message');
+            
             return new WP_REST_Response(array(
                 'success' => true,
-                'message_id' => $message_id
+                'message_id' => $message_id,
+                'thread_id' => $thread_id
             ), 201);
         }
         
-        error_log("Surf Social Debug - Failed to save message. Error: " . $wpdb->last_error);
         return new WP_Error('save_failed', 'Failed to save message: ' . $wpdb->last_error, array('status' => 500));
     }
     
@@ -1365,66 +1338,60 @@ class Surf_Social {
     /**
      * Broadcast via Pusher
      */
-    private function broadcast_via_pusher($event, $data) {
-        error_log("Surf Social Debug - Attempting to broadcast via Pusher: $event");
-        
+    private function broadcast_via_pusher($event, $data, $channels = array()) {
         // Get Pusher configuration
         $pusher_key = get_option('surf_social_pusher_key');
         $pusher_secret = get_option('surf_social_pusher_secret');
         $pusher_cluster = get_option('surf_social_pusher_cluster');
         
         if (empty($pusher_key) || empty($pusher_secret)) {
-            error_log("Surf Social Debug - Pusher not configured properly");
             return false;
         }
         
-        // Use WordPress HTTP API to send to Pusher
+        // Default channels if none specified
+        if (empty($channels)) {
+            $channels = array('surf-social-channel');
+        }
+        
+        $success = true;
         $pusher_url = "https://api.pusherapp.com/apps/$pusher_key/events";
         
-        $body = array(
-            'name' => $event,
-            'data' => json_encode($data),
-            'channel' => 'surf-social-channel'
-        );
-        
-        $response = wp_remote_post($pusher_url, array(
-            'body' => $body,
-            'headers' => array(
-                'Content-Type' => 'application/x-www-form-urlencoded'
-            ),
-            'timeout' => 10
-        ));
-        
-        if (is_wp_error($response)) {
-            error_log("Surf Social Debug - Pusher broadcast failed: " . $response->get_error_message());
-            return false;
+        foreach ($channels as $channel) {
+            $body = array(
+                'name' => $event,
+                'data' => json_encode($data),
+                'channel' => $channel
+            );
+            
+            $response = wp_remote_post($pusher_url, array(
+                'body' => $body,
+                'headers' => array(
+                    'Content-Type' => 'application/x-www-form-urlencoded'
+                ),
+                'timeout' => 10
+            ));
+            
+            if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+                $success = false;
+            }
         }
         
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code === 200) {
-            error_log("Surf Social Debug - Pusher broadcast successful");
-            return true;
-        } else {
-            error_log("Surf Social Debug - Pusher broadcast failed with code: $response_code");
-            return false;
-        }
+        return $success;
     }
     
     /**
      * Broadcast via WebSocket
      */
-    private function broadcast_via_websocket($event, $data) {
-        error_log("Surf Social Debug - Attempting to broadcast via WebSocket: $event");
-        
+    private function broadcast_via_websocket($event, $data, $channels = array()) {
         $websocket_url = get_option('surf_social_websocket_url');
         if (empty($websocket_url)) {
-            error_log("Surf Social Debug - WebSocket URL not configured");
             return false;
         }
         
         $payload = json_encode(array(
             'type' => $event,
-            'data' => $data
+            'data' => $data,
+            'channels' => $channels
         ));
         
         $response = wp_remote_post($websocket_url, array(
@@ -1436,67 +1403,105 @@ class Surf_Social {
         ));
         
         if (is_wp_error($response)) {
-            error_log("Surf Social Debug - WebSocket broadcast failed: " . $response->get_error_message());
             return false;
         }
         
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code === 200) {
-            error_log("Surf Social Debug - WebSocket broadcast successful");
-            return true;
-        } else {
-            error_log("Surf Social Debug - WebSocket broadcast failed with code: $response_code");
-            return false;
-        }
+        return wp_remote_retrieve_response_code($response) === 200;
     }
     
     /**
      * Broadcast admin reply to frontend
      */
     private function broadcast_admin_reply($user_id, $user_name, $message, $admin_name) {
-        error_log("Surf Social Debug - broadcast_admin_reply called");
-        error_log("Surf Social Debug - user_id: $user_id");
-        error_log("Surf Social Debug - user_name: $user_name");
-        error_log("Surf Social Debug - message: $message");
-        error_log("Surf Social Debug - admin_name: $admin_name");
-        
         $data = array(
             'type' => 'admin-support-reply',
             'user_id' => $user_id,
             'user_name' => $user_name,
             'admin_name' => $admin_name,
             'message' => $message,
-            'created_at' => current_time('mysql')
+            'created_at' => current_time('mysql'),
+            'timestamp' => time()
         );
         
-        error_log("Surf Social Debug - Broadcasting data: " . json_encode($data));
+        $this->broadcast_realtime_event('admin-support-reply', $data);
+    }
+    
+    /**
+     * Broadcast support ticket updates to admin
+     */
+    private function broadcast_support_ticket_update($user_id, $update_type = 'new_message') {
+        $data = array(
+            'type' => 'support-ticket-update',
+            'user_id' => $user_id,
+            'update_type' => $update_type,
+            'timestamp' => time()
+        );
+        
+        $this->broadcast_realtime_event('support-ticket-update', $data, array('admin'));
+    }
+    
+    /**
+     * Unified real-time broadcasting system with deduplication
+     */
+    private function broadcast_realtime_event($event, $data, $channels = array()) {
+        // Add deduplication ID to prevent duplicate messages
+        $data['dedupe_id'] = $this->generate_dedupe_id($event, $data);
+        
+        // Check if this message was already sent recently
+        if ($this->is_duplicate_message($data['dedupe_id'])) {
+            return true; // Message already sent, consider it successful
+        }
         
         $pusher_success = false;
         $websocket_success = false;
         
         // Try Pusher first
         if (get_option('surf_social_use_pusher', '1') === '1') {
-            error_log("Surf Social Debug - Attempting Pusher broadcast");
-            $pusher_success = $this->broadcast_via_pusher('admin-support-reply', $data);
-        } else {
-            error_log("Surf Social Debug - Pusher disabled");
+            $pusher_success = $this->broadcast_via_pusher($event, $data, $channels);
         }
         
         // Try WebSocket as fallback
         $websocket_url = get_option('surf_social_websocket_url');
-        if ($websocket_url) {
-            error_log("Surf Social Debug - Attempting WebSocket broadcast");
-            $websocket_success = $this->broadcast_via_websocket('admin-support-reply', $data);
-        } else {
-            error_log("Surf Social Debug - WebSocket URL not configured");
+        if ($websocket_url && !$pusher_success) {
+            $websocket_success = $this->broadcast_via_websocket($event, $data, $channels);
         }
         
-        error_log("Surf Social Debug - Broadcast results - Pusher: " . ($pusher_success ? 'success' : 'failed') . ", WebSocket: " . ($websocket_success ? 'success' : 'failed'));
-        
-        // If both fail, we'll rely on polling/refresh
-        if (!$pusher_success && !$websocket_success) {
-            error_log("Surf Social Debug - Both broadcasting methods failed, relying on polling");
+        // Mark message as sent if either method succeeded
+        if ($pusher_success || $websocket_success) {
+            $this->mark_message_sent($data['dedupe_id']);
         }
+        
+        return $pusher_success || $websocket_success;
+    }
+    
+    /**
+     * Generate deduplication ID for messages
+     */
+    private function generate_dedupe_id($event, $data) {
+        $key_data = array(
+            'event' => $event,
+            'user_id' => $data['user_id'] ?? '',
+            'message' => $data['message'] ?? '',
+            'timestamp' => $data['timestamp'] ?? time()
+        );
+        
+        return 'dedupe_' . md5(serialize($key_data));
+    }
+    
+    /**
+     * Check if message is duplicate
+     */
+    private function is_duplicate_message($dedupe_id) {
+        $transient_key = 'surf_social_dedupe_' . $dedupe_id;
+        return get_transient($transient_key) !== false;
+    }
+    
+    /**
+     * Mark message as sent
+     */
+    private function mark_message_sent($dedupe_id) {
+        $transient_key = 'surf_social_dedupe_' . $dedupe_id;
+        set_transient($transient_key, true, 300); // 5 minutes
     }
     
     /**
@@ -2104,18 +2109,30 @@ class Surf_Social {
             message_type enum('user', 'admin') DEFAULT 'user',
             status enum('open', 'closed', 'resolved') DEFAULT 'open',
             admin_read_at datetime NULL,
+            thread_id varchar(100) NULL,
+            parent_message_id bigint(20) NULL,
+            is_thread_starter tinyint(1) DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY user_id (user_id),
             KEY admin_id (admin_id),
             KEY status (status),
             KEY created_at (created_at),
-            KEY admin_read_at (admin_read_at)
+            KEY admin_read_at (admin_read_at),
+            KEY thread_id (thread_id),
+            KEY parent_message_id (parent_message_id),
+            KEY is_thread_starter (is_thread_starter)
         ) $charset_collate;";
         dbDelta($sql);
         
         // Add admin_read_at column to existing tables if it doesn't exist
         $this->add_admin_read_at_column();
+        
+        // Add threading columns to existing support messages table
+        $this->add_threading_columns();
+        
+        // Create optimized indexes
+        $this->create_database_indexes();
         
         // Guest users table
         $table_name = $wpdb->prefix . 'surf_social_guests';
@@ -2166,23 +2183,101 @@ class Surf_Social {
         $table_name = $wpdb->prefix . 'surf_social_individual_messages';
         
         // Check if table exists
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
         if (!$table_exists) {
             return;
         }
         
         // Check if sender_id is already varchar
-        $column_info = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'sender_id'");
+        $column_info = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'sender_id'));
         if (!empty($column_info) && strpos($column_info[0]->Type, 'varchar') === false) {
             // Update sender_id column to varchar
             $wpdb->query("ALTER TABLE $table_name MODIFY COLUMN sender_id varchar(100) NOT NULL");
         }
         
         // Check if recipient_id is already varchar
-        $column_info = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'recipient_id'");
+        $column_info = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'recipient_id'));
         if (!empty($column_info) && strpos($column_info[0]->Type, 'varchar') === false) {
             // Update recipient_id column to varchar
             $wpdb->query("ALTER TABLE $table_name MODIFY COLUMN recipient_id varchar(100) NOT NULL");
+        }
+    }
+    
+    /**
+     * Add threading columns to support messages table
+     */
+    private function add_threading_columns() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+        if (!$table_exists) {
+            return;
+        }
+        
+        // Add thread_id column if it doesn't exist
+        $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'thread_id'));
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN thread_id varchar(100) NULL AFTER admin_read_at");
+            $wpdb->query("ALTER TABLE $table_name ADD KEY thread_id (thread_id)");
+        }
+        
+        // Add parent_message_id column if it doesn't exist
+        $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'parent_message_id'));
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN parent_message_id bigint(20) NULL AFTER thread_id");
+            $wpdb->query("ALTER TABLE $table_name ADD KEY parent_message_id (parent_message_id)");
+        }
+        
+        // Add is_thread_starter column if it doesn't exist
+        $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'is_thread_starter'));
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_thread_starter tinyint(1) DEFAULT 0 AFTER parent_message_id");
+            $wpdb->query("ALTER TABLE $table_name ADD KEY is_thread_starter (is_thread_starter)");
+        }
+    }
+    
+    /**
+     * Create optimized database indexes
+     */
+    private function create_database_indexes() {
+        global $wpdb;
+        
+        // Messages table indexes
+        $messages_table = $wpdb->prefix . 'surf_social_messages';
+        $this->add_index_if_not_exists($messages_table, 'idx_user_created', 'user_id, created_at');
+        $this->add_index_if_not_exists($messages_table, 'idx_created', 'created_at');
+        
+        // Individual messages table indexes
+        $individual_table = $wpdb->prefix . 'surf_social_individual_messages';
+        $this->add_index_if_not_exists($individual_table, 'idx_sender_recipient', 'sender_id, recipient_id');
+        $this->add_index_if_not_exists($individual_table, 'idx_recipient_sender', 'recipient_id, sender_id');
+        $this->add_index_if_not_exists($individual_table, 'idx_created', 'created_at');
+        
+        // Support messages table indexes
+        $support_table = $wpdb->prefix . 'surf_social_support_messages';
+        $this->add_index_if_not_exists($support_table, 'idx_user_status', 'user_id, status');
+        $this->add_index_if_not_exists($support_table, 'idx_thread_created', 'thread_id, created_at');
+        $this->add_index_if_not_exists($support_table, 'idx_parent_message', 'parent_message_id');
+        $this->add_index_if_not_exists($support_table, 'idx_user_created', 'user_id, created_at');
+    }
+    
+    /**
+     * Add index if it doesn't exist
+     */
+    private function add_index_if_not_exists($table, $index_name, $columns) {
+        global $wpdb;
+        
+        // Check if index exists
+        $index_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+             WHERE table_schema = %s AND table_name = %s AND index_name = %s",
+            DB_NAME, $table, $index_name
+        ));
+        
+        if (!$index_exists) {
+            $wpdb->query("ALTER TABLE $table ADD INDEX $index_name ($columns)");
         }
     }
     

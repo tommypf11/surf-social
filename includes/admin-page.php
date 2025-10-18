@@ -1484,19 +1484,139 @@ jQuery(document).ready(function($) {
         return date.toLocaleDateString();
     }
     
-    // Auto-refresh functionality
-    function startAutoRefresh() {
-        // Refresh support tickets every 5 seconds
-        autoRefreshInterval = setInterval(() => {
+    // Real-time update system
+    let realtimeConnection = null;
+    let lastUpdateTime = 0;
+    
+    function initRealtimeUpdates() {
+        // Initialize Pusher or WebSocket connection for admin updates
+        if (typeof Pusher !== 'undefined' && '<?php echo get_option('surf_social_use_pusher', '1'); ?>' === '1') {
+            initPusherAdmin();
+        } else if ('<?php echo get_option('surf_social_websocket_url', ''); ?>') {
+            initWebSocketAdmin();
+        } else {
+            // Fallback to intelligent polling
+            startIntelligentPolling();
+        }
+    }
+    
+    function initPusherAdmin() {
+        try {
+            realtimeConnection = new Pusher('<?php echo get_option('surf_social_pusher_key', ''); ?>', {
+                cluster: '<?php echo get_option('surf_social_pusher_cluster', 'us3'); ?>',
+                authEndpoint: '<?php echo rest_url('surf-social/v1/pusher/auth'); ?>'
+            });
+            
+            const adminChannel = realtimeConnection.subscribe('private-surf-social-admin');
+            
+            adminChannel.bind('support-ticket-update', function(data) {
+                handleSupportTicketUpdate(data);
+            });
+            
+            adminChannel.bind('admin-support-reply', function(data) {
+                handleAdminSupportReply(data);
+            });
+            
+            console.log('Admin real-time connection established');
+        } catch (error) {
+            console.error('Failed to initialize admin real-time connection:', error);
+            startIntelligentPolling();
+        }
+    }
+    
+    function initWebSocketAdmin() {
+        try {
+            realtimeConnection = new WebSocket('<?php echo get_option('surf_social_websocket_url', ''); ?>');
+            
+            realtimeConnection.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'support-ticket-update') {
+                    handleSupportTicketUpdate(data);
+                } else if (data.type === 'admin-support-reply') {
+                    handleAdminSupportReply(data);
+                }
+            };
+            
+            realtimeConnection.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                startIntelligentPolling();
+            };
+            
+            console.log('Admin WebSocket connection established');
+        } catch (error) {
+            console.error('Failed to initialize admin WebSocket:', error);
+            startIntelligentPolling();
+        }
+    }
+    
+    function startIntelligentPolling() {
+        // Intelligent polling that adapts based on activity
+        let pollInterval = 10000; // Start with 10 seconds
+        let lastActivity = Date.now();
+        
+        function poll() {
+            const now = Date.now();
+            const timeSinceActivity = now - lastActivity;
+            
+            // Increase polling frequency if there's recent activity
+            if (timeSinceActivity < 60000) { // Last minute
+                pollInterval = 5000;
+            } else if (timeSinceActivity < 300000) { // Last 5 minutes
+                pollInterval = 15000;
+            } else {
+                pollInterval = 30000; // 30 seconds for inactive periods
+            }
+            
             loadSupportTickets();
-            // Also refresh the conversation if one is selected
             if (selectedTicketUserId) {
                 loadSupportConversation(selectedTicketUserId);
             }
-        }, 5000);
+            
+            setTimeout(poll, pollInterval);
+        }
+        
+        // Track user activity
+        document.addEventListener('click', () => { lastActivity = Date.now(); });
+        document.addEventListener('keypress', () => { lastActivity = Date.now(); });
+        
+        poll();
+    }
+    
+    function handleSupportTicketUpdate(data) {
+        console.log('Support ticket update received:', data);
+        
+        // Only refresh if the update is recent (within last 30 seconds)
+        if (data.timestamp && (Date.now() / 1000 - data.timestamp) < 30) {
+            loadSupportTickets();
+            
+            // If the updated ticket is currently selected, refresh conversation
+            if (selectedTicketUserId === data.user_id) {
+                loadSupportConversation(selectedTicketUserId);
+            }
+        }
+    }
+    
+    function handleAdminSupportReply(data) {
+        console.log('Admin support reply received:', data);
+        
+        // Refresh conversation if it's for the currently selected ticket
+        if (selectedTicketUserId === data.user_id) {
+            loadSupportConversation(selectedTicketUserId);
+        }
+    }
+    
+    // Legacy auto-refresh functions for backward compatibility
+    function startAutoRefresh() {
+        initRealtimeUpdates();
     }
     
     function stopAutoRefresh() {
+        if (realtimeConnection) {
+            if (realtimeConnection.close) {
+                realtimeConnection.close();
+            }
+            realtimeConnection = null;
+        }
         if (autoRefreshInterval) {
             clearInterval(autoRefreshInterval);
             autoRefreshInterval = null;

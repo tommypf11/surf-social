@@ -28,6 +28,11 @@
     let hasSetGuestName = false; // Track if guest has set their name
     let hasSetGuestEmail = false; // Track if guest has set their email
     let hasSetGuestInfo = false; // Track if guest has completed registration
+    
+    // Message deduplication cache
+    const messageCache = new Map();
+    const MAX_CACHE_SIZE = 1000;
+    const CACHE_CLEANUP_INTERVAL = 300000; // 5 minutes
     let isFirstMessage = true; // Track if this is the first message attempt
     let supportRefreshInterval = null; // Auto-refresh for support chat
     
@@ -50,12 +55,30 @@
     const joinButton = document.getElementById('surf-join-button');
     
     /**
+     * Initialize message cache with cleanup
+     */
+    function initMessageCache() {
+        // Clean up cache periodically
+        setInterval(() => {
+            if (messageCache.size > MAX_CACHE_SIZE) {
+                // Remove oldest entries
+                const entries = Array.from(messageCache.entries());
+                const toRemove = entries.slice(0, entries.length - MAX_CACHE_SIZE);
+                toRemove.forEach(([key]) => messageCache.delete(key));
+            }
+        }, CACHE_CLEANUP_INTERVAL);
+    }
+    
+    /**
      * Initialize the plugin
      */
     function init() {
         if (!config.currentUser || !config.currentUser.name) {
             return;
         }
+        
+        // Initialize message cache
+        initMessageCache();
         
         setupEventListeners();
         initRealtime();
@@ -1756,10 +1779,16 @@
     }
     
     /**
-     * Handle new message
+     * Handle new message with deduplication
      */
     function handleNewMessage(data) {
         if (data.user.id === config.currentUser.id) {
+            return;
+        }
+        
+        // Check for duplicate messages
+        if (data.dedupe_id && messageCache.has(data.dedupe_id)) {
+            console.log('Duplicate message ignored:', data.dedupe_id);
             return;
         }
         
@@ -1768,8 +1797,14 @@
             user_name: data.user.name,
             message: data.message,
             created_at: data.created_at,
-            user_color: data.user.color
+            user_color: data.user.color,
+            dedupe_id: data.dedupe_id
         };
+        
+        // Cache message to prevent duplicates
+        if (data.dedupe_id) {
+            messageCache.set(data.dedupe_id, true);
+        }
         
         // Handle different message types
         if (data.type === 'individual-chat') {
