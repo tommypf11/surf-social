@@ -816,6 +816,24 @@
             } else {
                 chatInput.placeholder = 'Type a message...';
             }
+            
+            // Ensure input and send button are visible and enabled for web chat and support
+            if (tabName === 'web' || (tabName === 'support' && config.currentUser.isAdmin && currentChatUser)) {
+                chatInput.style.display = 'flex';
+                chatInput.disabled = false;
+                if (chatSend) {
+                    chatSend.style.display = 'flex';
+                    chatSend.disabled = false;
+                }
+            } else if (tabName === 'support' && !config.currentUser.isAdmin) {
+                // Regular user in support chat
+                chatInput.style.display = 'flex';
+                chatInput.disabled = false;
+                if (chatSend) {
+                    chatSend.style.display = 'flex';
+                    chatSend.disabled = false;
+                }
+            }
         }
     }
     
@@ -1101,9 +1119,9 @@
         const userMessages = individualChats.get(user.id) || [];
         if (userMessages.length > 0) {
             const lastMsg = userMessages[userMessages.length - 1];
-            lastMessage.textContent = lastMsg.message || 'Click to start chatting...';
+            lastMessage.textContent = lastMsg.message || '';
         } else {
-            lastMessage.textContent = 'Click to start chatting...';
+            lastMessage.textContent = '';
         }
         
         const time = document.createElement('div');
@@ -1877,6 +1895,13 @@
             }
             individualChats.get(targetUserId).push(adminMsg);
             
+            // Display the message in admin's own view if they're viewing this conversation
+            if (currentTab === 'support' && currentChatUser && currentChatUser.id === targetUserId) {
+                const messageEl = createMessageElement(adminMsg);
+                chatMessages.appendChild(messageEl);
+                scrollToBottom();
+            }
+            
             // Broadcast to target user
             const data = {
                 user_id: targetUserId,
@@ -1886,9 +1911,16 @@
                 type: 'admin-support-reply'
             };
             
+            console.log('Broadcasting admin reply to user:', targetUserId);
+            console.log('Broadcast data:', data);
+            console.log('Using pusher:', !!pusher);
+            console.log('Using websocket:', !!(websocket && websocket.readyState === WebSocket.OPEN));
+            
             if (pusher) {
+                console.log('Triggering pusher event: client-admin-support-reply');
                 channel.trigger('client-admin-support-reply', data);
             } else if (websocket && websocket.readyState === WebSocket.OPEN) {
+                console.log('Sending websocket message');
                 websocket.send(JSON.stringify({ type: 'admin-support-reply', ...data }));
             }
             
@@ -2055,8 +2087,14 @@
      * Handle admin support reply
      */
     function handleAdminSupportReply(data) {
+        console.log('Admin support reply received:', data);
+        console.log('Current user ID:', config.currentUser.id);
+        console.log('Target user ID:', data.user_id);
+        console.log('Is target user?', data.user_id === config.currentUser.id);
+        
         // Only show if we're the target user
         if (data.user_id !== config.currentUser.id) {
+            console.log('Not the target user, ignoring message');
             return;
         }
         
@@ -2075,11 +2113,24 @@
         }
         individualChats.get('admin').push(msg);
         
-        // If we're currently viewing a specific support conversation, show the message
-        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin' && currentChatUser.id !== null && currentChatUser.id !== undefined) {
-            const messageEl = createMessageElement(msg);
-            chatMessages.appendChild(messageEl);
-            scrollToBottom();
+        // If we're currently viewing support chat, show the message
+        if (currentTab === 'support') {
+            console.log('Currently viewing support chat');
+            console.log('Is admin user:', config.currentUser.isAdmin);
+            console.log('Current chat user:', currentChatUser);
+            
+            // For regular users, currentChatUser is set to adminUser, so show the message
+            // For admin users, only show if they're viewing a specific conversation
+            if (!config.currentUser.isAdmin || (currentChatUser && currentChatUser.id !== 'admin' && currentChatUser.id !== null && currentChatUser.id !== undefined)) {
+                console.log('Showing admin reply message');
+                const messageEl = createMessageElement(msg);
+                chatMessages.appendChild(messageEl);
+                scrollToBottom();
+            } else {
+                console.log('Not showing message - conditions not met');
+            }
+        } else {
+            console.log('Not viewing support chat, current tab:', currentTab);
         }
         
         // Update admin dashboard if it's visible (but don't add messages to it)
