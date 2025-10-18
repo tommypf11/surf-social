@@ -79,6 +79,13 @@
                 showFriendChatList();
             }
         }, 5000); // Refresh every 5 seconds
+        
+        // Also refresh friend list when real-time connection is established
+        setTimeout(() => {
+            if (currentTab === 'friend' && !currentChatUser) {
+                showFriendChatList();
+            }
+        }, 2000); // Refresh after 2 seconds to catch any users that joined
     }
     
     /**
@@ -265,6 +272,13 @@
             channel.bind('client-individual-message', handleIndividualMessage);
             channel.bind('client-support-message', handleSupportMessage);
             channel.bind('client-message-deleted', handleMessageDeleted);
+            
+            // Refresh friend list after connection is established
+            if (currentTab === 'friend' && !currentChatUser) {
+                setTimeout(() => {
+                    showFriendChatList();
+                }, 1000);
+            }
         });
         
         channel.bind('pusher:subscription_error', function(error) {
@@ -576,6 +590,12 @@
             if (currentTab === 'friend' && !currentChatUser) {
                 showFriendChatList();
             }
+        } else {
+            // Update existing user's last seen time
+            const existingCursor = currentUsers.get(data.user.id);
+            if (existingCursor) {
+                existingCursor.lastSeen = Date.now();
+            }
         }
     }
     
@@ -779,7 +799,7 @@
     /**
      * Show Friend Chat list
      */
-    function showFriendChatList() {
+    async function showFriendChatList() {
         chatMessages.innerHTML = '';
         
         // Update title
@@ -788,9 +808,10 @@
             title.textContent = 'Friend Chat';
         }
         
-        // Load historical conversations
-        loadHistoricalConversations();
+        // Load historical conversations first
+        await loadHistoricalConversations();
         
+        // If no users are available, show empty state
         if (currentUsers.size === 0) {
             showEmptyState('No other users online. Share this page with friends to start chatting!');
             return;
@@ -823,6 +844,12 @@
                 if (data.conversations && data.conversations.length > 0) {
                     // Add historical conversations to the friend list
                     data.conversations.forEach(conv => {
+                        // Validate conversation data
+                        if (!conv.other_user_id || !conv.other_user_name) {
+                            console.warn('Invalid conversation data:', conv);
+                            return;
+                        }
+                        
                         // Check if this user is already in currentUsers
                         const existingUser = Array.from(currentUsers.values()).find(cursor => cursor.user.id === conv.other_user_id);
                         if (!existingUser) {
@@ -835,7 +862,7 @@
                             
                             const virtualCursor = {
                                 user: virtualUser,
-                                lastSeen: new Date(conv.last_message_time).getTime(),
+                                lastSeen: conv.last_message_time ? new Date(conv.last_message_time).getTime() : Date.now(),
                                 element: null // No cursor element for historical users
                             };
                             
@@ -859,6 +886,10 @@
             '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788'
         ];
         
+        if (!userId) {
+            return colors[0];
+        }
+        
         if (typeof userId === 'string') {
             const hash = userId.split('').reduce((a, b) => {
                 a = ((a << 5) - a) + b.charCodeAt(0);
@@ -880,15 +911,15 @@
         
         const avatar = document.createElement('div');
         avatar.className = 'surf-friend-avatar';
-        avatar.style.backgroundColor = user.color;
-        avatar.textContent = user.name.charAt(0).toUpperCase();
+        avatar.style.backgroundColor = user.color || '#FF6B6B';
+        avatar.textContent = (user.name && user.name.charAt) ? user.name.charAt(0).toUpperCase() : '?';
         
         const content = document.createElement('div');
         content.className = 'surf-friend-content';
         
         const name = document.createElement('div');
         name.className = 'surf-friend-name';
-        name.textContent = user.name;
+        name.textContent = user.name || 'Unknown User';
         
         const lastMessage = document.createElement('div');
         lastMessage.className = 'surf-friend-last-message';
@@ -897,7 +928,7 @@
         const userMessages = individualChats.get(user.id) || [];
         if (userMessages.length > 0) {
             const lastMsg = userMessages[userMessages.length - 1];
-            lastMessage.textContent = lastMsg.message;
+            lastMessage.textContent = lastMsg.message || 'Click to start chatting...';
         } else {
             lastMessage.textContent = 'Click to start chatting...';
         }
