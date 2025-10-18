@@ -1103,3 +1103,146 @@
     margin: 0;
 }
 
+/* Admin Support Dashboard Styles */
+.surf-admin-tickets-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.surf-admin-ticket-item {
+    background: #f8f9fa;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.surf-admin-ticket-item:hover {
+    background: #e9ecef;
+    border-color: #007cba;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.surf-admin-ticket-item.active {
+    background: #f0f8ff;
+    border-color: #007cba;
+    box-shadow: 0 2px 8px rgba(0,124,186,0.2);
+}
+
+.surf-admin-ticket-item.unread {
+    border-left: 4px solid #ffc107;
+    background: #fff3cd;
+}
+
+.surf-admin-ticket-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.surf-admin-ticket-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.surf-unread-indicator {
+    color: #ffc107;
+    font-size: 16px;
+    animation: pulse 2s infinite;
+}
+
+.surf-admin-ticket-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: #666;
+}
+
+.surf-ticket-count {
+    background: #007cba;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.surf-ticket-time {
+    font-size: 11px;
+    color: #999;
+}
+
+.surf-admin-ticket-preview {
+    color: #666;
+    font-size: 13px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.surf-admin-conversation {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px 0;
+}
+
+.surf-admin-conversation .surf-message-item {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.surf-admin-conversation .surf-message-item.admin {
+    align-items: flex-end;
+}
+
+.surf-admin-conversation .surf-message-item.user {
+    align-items: flex-start;
+}
+
+.surf-admin-conversation .surf-message-bubble {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.surf-admin-conversation .surf-message-item.admin .surf-message-bubble {
+    background: #007cba;
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.surf-admin-conversation .surf-message-item.user .surf-message-bubble {
+    background: #f1f3f4;
+    color: #1d2327;
+    border-bottom-left-radius: 4px;
+}
+
+.surf-admin-conversation .surf-message-meta {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+    padding: 0 8px;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+

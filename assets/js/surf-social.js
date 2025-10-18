@@ -792,7 +792,11 @@
             if (tabName === 'friend') {
                 chatInput.placeholder = 'Select a friend to start chatting...';
             } else if (tabName === 'support') {
-                chatInput.placeholder = 'Type your support message...';
+                if (config.currentUser.isAdmin) {
+                    chatInput.placeholder = 'Select a support ticket to reply...';
+                } else {
+                    chatInput.placeholder = 'Type your support message...';
+                }
             } else {
                 chatInput.placeholder = 'Type a message...';
             }
@@ -1183,18 +1187,30 @@
      */
     function showSupportChat() {
         chatMessages.innerHTML = '';
-        currentChatUser = adminUser;
         
         const title = document.querySelector('.surf-chat-title');
-        if (title) {
-            title.textContent = 'Support Chat';
+        
+        // Check if current user is admin
+        if (config.currentUser.isAdmin) {
+            // Show admin support dashboard
+            currentChatUser = null; // No specific user selected yet
+            if (title) {
+                title.textContent = 'Admin Support Dashboard';
+            }
+            showAdminSupportDashboard();
+        } else {
+            // Show regular user support chat
+            currentChatUser = adminUser;
+            if (title) {
+                title.textContent = 'Support Chat';
+            }
+            
+            // Load support messages
+            loadSupportMessages();
+            
+            // Start auto-refresh for support chat
+            startSupportAutoRefresh();
         }
-        
-        // Load support messages
-        loadSupportMessages();
-        
-        // Start auto-refresh for support chat
-        startSupportAutoRefresh();
     }
     
     /**
@@ -1449,7 +1465,13 @@
             } else if (currentTab === 'friend' && currentChatUser) {
                 await sendIndividualChatMessage(msg, currentChatUser);
             } else if (currentTab === 'support') {
-                await sendSupportMessage(msg);
+                if (config.currentUser.isAdmin && currentChatUser) {
+                    // Admin sending reply to user
+                    await sendAdminSupportReply(msg, currentChatUser.id);
+                } else {
+                    // Regular user sending support message
+                    await sendSupportMessage(msg);
+                }
             } else {
                 // If in friend tab but no user selected, don't send message
                 console.warn('No user selected for individual chat');
@@ -1648,6 +1670,82 @@
             }
         } catch (error) {
             console.error('Support message send error:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Send admin support reply
+     */
+    async function sendAdminSupportReply(msg, targetUserId) {
+        try {
+            console.log('Sending admin support reply:', msg);
+            console.log('Target User ID:', targetUserId);
+            console.log('Admin Name:', config.currentUser.name);
+            
+            const requestData = {
+                user_id: targetUserId,
+                message: msg.message,
+                admin_id: config.currentUser.id,
+                admin_name: config.currentUser.name
+            };
+            
+            console.log('Admin reply request data:', requestData);
+            
+            // Save to backend
+            const response = await fetch(`${config.apiUrl}chat/support/admin/reply`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            console.log('Admin reply response status:', response.status);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Admin reply error response:', errorData);
+                throw new Error(`Failed to send admin reply: ${errorData.message || response.statusText}`);
+            }
+            
+            const responseData = await response.json();
+            console.log('Admin reply response data:', responseData);
+            
+            // Create admin message object for display
+            const adminMsg = {
+                user_id: 'admin',
+                user_name: config.currentUser.name,
+                message: msg.message,
+                created_at: msg.created_at,
+                user_color: '#E74C3C',
+                message_type: 'admin'
+            };
+            
+            // Store message locally
+            if (!individualChats.has(targetUserId)) {
+                individualChats.set(targetUserId, []);
+            }
+            individualChats.get(targetUserId).push(adminMsg);
+            
+            // Broadcast to target user
+            const data = {
+                user_id: targetUserId,
+                admin_name: config.currentUser.name,
+                message: msg.message,
+                created_at: msg.created_at,
+                type: 'admin-support-reply'
+            };
+            
+            if (pusher) {
+                channel.trigger('client-admin-support-reply', data);
+            } else if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({ type: 'admin-support-reply', ...data }));
+            }
+            
+        } catch (error) {
+            console.error('Admin support reply send error:', error);
             throw error;
         }
     }
@@ -2339,6 +2437,230 @@
             clearInterval(supportRefreshInterval);
             supportRefreshInterval = null;
         }
+    }
+    
+    /**
+     * Show Admin Support Dashboard
+     */
+    async function showAdminSupportDashboard() {
+        chatMessages.innerHTML = '<div class="surf-loading">Loading support tickets...</div>';
+        
+        try {
+            // Load all support tickets
+            const response = await fetch(`${config.apiUrl}chat/support/admin`, {
+                headers: {
+                    'X-WP-Nonce': config.nonce
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.tickets && data.tickets.length > 0) {
+                displayAdminSupportTickets(data.tickets);
+            } else {
+                chatMessages.innerHTML = '<div class="surf-empty-state"><p>No support tickets found</p></div>';
+            }
+            
+            // Start auto-refresh for admin dashboard
+            startAdminSupportAutoRefresh();
+            
+        } catch (error) {
+            console.error('Failed to load support tickets:', error);
+            chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load support tickets: ' + error.message + '</p></div>';
+        }
+    }
+    
+    /**
+     * Display Admin Support Tickets
+     */
+    function displayAdminSupportTickets(tickets) {
+        let html = '<div class="surf-admin-tickets-container">';
+        
+        tickets.forEach(ticket => {
+            const lastMessageTime = new Date(ticket.last_message_time);
+            const timeAgo = formatTimeAgo(ticket.last_message_time);
+            const isUnread = !ticket.is_read_by_admin;
+            
+            html += `
+                <div class="surf-admin-ticket-item ${isUnread ? 'unread' : ''}" data-user-id="${ticket.user_id}">
+                    <div class="surf-admin-ticket-header">
+                        <div class="surf-admin-ticket-user">
+                            <strong>${ticket.user_name || 'Unknown User'}</strong>
+                            ${isUnread ? '<span class="surf-unread-indicator">●</span>' : ''}
+                        </div>
+                        <div class="surf-admin-ticket-meta">
+                            <span class="surf-ticket-count">${ticket.message_count} messages</span>
+                            <span class="surf-ticket-time">${timeAgo}</span>
+                        </div>
+                    </div>
+                    <div class="surf-admin-ticket-preview">
+                        ${ticket.last_message ? ticket.last_message.substring(0, 100) + (ticket.last_message.length > 100 ? '...' : '') : 'No messages yet'}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        chatMessages.innerHTML = html;
+        
+        // Add click handlers for ticket items
+        document.querySelectorAll('.surf-admin-ticket-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const userId = this.dataset.userId;
+                selectAdminSupportTicket(userId);
+            });
+        });
+    }
+    
+    /**
+     * Select Admin Support Ticket
+     */
+    async function selectAdminSupportTicket(userId) {
+        // Update UI to show selected ticket
+        document.querySelectorAll('.surf-admin-ticket-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`[data-user-id="${userId}"]`).classList.add('active');
+        
+        // Load conversation for this user
+        await loadAdminSupportConversation(userId);
+    }
+    
+    /**
+     * Load Admin Support Conversation
+     */
+    async function loadAdminSupportConversation(userId) {
+        try {
+            const response = await fetch(`${config.apiUrl}chat/support/admin/conversation?user_id=${userId}`, {
+                headers: {
+                    'X-WP-Nonce': config.nonce
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            // Update title
+            const title = document.querySelector('.surf-chat-title');
+            if (title) {
+                title.textContent = `Support Chat - ${data.user_info.user_name}`;
+            }
+            
+            // Display conversation
+            displayAdminSupportConversation(data.messages, data.user_info);
+            
+            // Mark as read
+            markSupportAsRead(userId);
+            
+        } catch (error) {
+            console.error('Failed to load support conversation:', error);
+            chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load conversation: ' + error.message + '</p></div>';
+        }
+    }
+    
+    /**
+     * Display Admin Support Conversation
+     */
+    function displayAdminSupportConversation(messages, userInfo) {
+        let html = '<div class="surf-admin-conversation">';
+        
+        if (messages.length === 0) {
+            html += '<div class="surf-empty-state"><p>No messages in this conversation</p></div>';
+        } else {
+            messages.forEach(message => {
+                const isAdmin = message.message_type === 'admin';
+                const messageTime = new Date(message.created_at);
+                const timeStr = messageTime.toLocaleTimeString();
+                
+                html += `
+                    <div class="surf-message-item ${isAdmin ? 'admin' : 'user'}">
+                        <div class="surf-message-bubble">
+                            ${message.message}
+                        </div>
+                        <div class="surf-message-meta">
+                            ${isAdmin ? 'Admin' : message.user_name} • ${timeStr}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += '</div>';
+        chatMessages.innerHTML = html;
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Update current chat user for sending messages
+        currentChatUser = {
+            id: userInfo.user_id,
+            name: userInfo.user_name,
+            color: '#E74C3C'
+        };
+        
+        // Update placeholder text
+        if (chatInput) {
+            chatInput.placeholder = `Reply to ${userInfo.user_name}...`;
+        }
+    }
+    
+    /**
+     * Mark Support as Read
+     */
+    async function markSupportAsRead(userId) {
+        try {
+            await fetch(`${config.apiUrl}chat/support/admin/mark-read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({ user_id: userId })
+            });
+        } catch (error) {
+            console.error('Failed to mark support as read:', error);
+        }
+    }
+    
+    /**
+     * Start Admin Support Auto-refresh
+     */
+    function startAdminSupportAutoRefresh() {
+        // Clear any existing interval
+        stopSupportAutoRefresh();
+        
+        // Refresh admin dashboard every 5 seconds
+        supportRefreshInterval = setInterval(() => {
+            if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
+                showAdminSupportDashboard();
+            } else if (currentTab === 'support' && config.currentUser.isAdmin && currentChatUser) {
+                // Refresh current conversation
+                loadAdminSupportConversation(currentChatUser.id);
+            }
+        }, 5000);
+    }
+    
+    /**
+     * Format Time Ago
+     */
+    function formatTimeAgo(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return Math.floor(diffInSeconds / 60) + 'm ago';
+        if (diffInSeconds < 86400) return Math.floor(diffInSeconds / 3600) + 'h ago';
+        if (diffInSeconds < 2592000) return Math.floor(diffInSeconds / 86400) + 'd ago';
+        
+        return date.toLocaleDateString();
     }
     
     // Initialize when DOM is ready

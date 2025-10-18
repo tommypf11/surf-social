@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.76
+Version: 1.0.77
 Author: Thomas Fraher
 */
 
@@ -200,7 +200,8 @@ class Surf_Social {
                 'email' => '', // Will be set by guest registration
                 'avatar' => $avatar_url,
                 'color' => $this->get_user_color($user_id),
-                'isGuest' => $is_guest
+                'isGuest' => $is_guest,
+                'isAdmin' => current_user_can('manage_options')
             ),
             'apiUrl' => rest_url('surf-social/v1/'),
             'nonce' => wp_create_nonce('wp_rest')
@@ -362,6 +363,24 @@ class Surf_Social {
         register_rest_route('surf-social/v1', '/chat/support/admin', array(
             'methods' => 'GET',
             'callback' => array($this, 'get_support_tickets'),
+            'permission_callback' => array($this, 'check_admin_permission')
+        ));
+        
+        register_rest_route('surf-social/v1', '/chat/support/admin/conversation', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_admin_support_conversation'),
+            'permission_callback' => array($this, 'check_admin_permission')
+        ));
+        
+        register_rest_route('surf-social/v1', '/chat/support/admin/reply', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'send_admin_support_reply'),
+            'permission_callback' => array($this, 'check_admin_permission')
+        ));
+        
+        register_rest_route('surf-social/v1', '/chat/support/admin/mark-read', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'mark_admin_support_read'),
             'permission_callback' => array($this, 'check_admin_permission')
         ));
         
@@ -887,6 +906,138 @@ class Surf_Social {
         );
         
         return new WP_REST_Response(array('tickets' => $tickets), 200);
+    }
+    
+    /**
+     * Get admin support conversation
+     */
+    public function get_admin_support_conversation($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $user_id = $request->get_param('user_id');
+        if (!$user_id) {
+            return new WP_Error('missing_params', 'User ID is required', array('status' => 400));
+        }
+        
+        $messages = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $table_name 
+                WHERE user_id = %s 
+                ORDER BY created_at ASC",
+                $user_id
+            ),
+            ARRAY_A
+        );
+        
+        // Get user info
+        $user_info = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT user_name, user_id FROM $table_name WHERE user_id = %s LIMIT 1",
+                $user_id
+            ),
+            ARRAY_A
+        );
+        
+        return new WP_REST_Response(array(
+            'messages' => $messages,
+            'user_info' => $user_info
+        ), 200);
+    }
+    
+    /**
+     * Send admin support reply
+     */
+    public function send_admin_support_reply($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $user_id = $request->get_param('user_id');
+        $message = $request->get_param('message');
+        $admin_id = get_current_user_id();
+        $admin_name = wp_get_current_user()->display_name ?: wp_get_current_user()->user_login;
+        
+        if (!$user_id || !$message) {
+            return new WP_Error('missing_params', 'User ID and message are required', array('status' => 400));
+        }
+        
+        $result = $wpdb->insert(
+            $table_name,
+            array(
+                'user_id' => $user_id,
+                'user_name' => '', // Will be filled from existing messages
+                'admin_id' => $admin_id,
+                'admin_name' => $admin_name,
+                'message' => $message,
+                'message_type' => 'admin',
+                'status' => 'open',
+                'created_at' => current_time('mysql')
+            ),
+            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
+        );
+        
+        if ($result) {
+            // Get the user name from existing messages
+            $user_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT user_name FROM $table_name WHERE user_id = %s LIMIT 1",
+                $user_id
+            ));
+            
+            // Broadcast the admin reply to the frontend
+            $this->broadcast_admin_reply($user_id, $user_name, $message, $admin_name);
+            
+            return new WP_REST_Response(array(
+                'success' => true,
+                'message_id' => $wpdb->insert_id
+            ), 201);
+        }
+        
+        return new WP_Error('save_failed', 'Failed to send reply: ' . $wpdb->last_error, array('status' => 500));
+    }
+    
+    /**
+     * Mark admin support as read
+     */
+    public function mark_admin_support_read($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $user_id = $request->get_param('user_id');
+        if (!$user_id) {
+            return new WP_Error('missing_params', 'User ID is required', array('status' => 400));
+        }
+        
+        // Update all unread messages for this user to mark them as read by admin
+        $result = $wpdb->update(
+            $table_name,
+            array(
+                'admin_id' => get_current_user_id(),
+                'admin_name' => wp_get_current_user()->display_name ?: wp_get_current_user()->user_login
+            ),
+            array(
+                'user_id' => $user_id,
+                'admin_id' => null
+            ),
+            array('%d', '%s'),
+            array('%s', 'NULL')
+        );
+        
+        // Also update any messages that don't have admin_id set (for backward compatibility)
+        $wpdb->update(
+            $table_name,
+            array(
+                'admin_id' => get_current_user_id(),
+                'admin_name' => wp_get_current_user()->display_name ?: wp_get_current_user()->user_login
+            ),
+            array(
+                'user_id' => $user_id,
+                'admin_id' => 0
+            ),
+            array('%d', '%s'),
+            array('%s', '%d')
+        );
+        
+        return new WP_REST_Response(array('success' => true), 200);
     }
     
     /**

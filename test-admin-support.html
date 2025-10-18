@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin Support Interface</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Admin Support Interface Test</h1>
+    
+    <div class="test-section">
+        <h3>Test Instructions</h3>
+        <ol>
+            <li>Make sure you're logged in as an admin user</li>
+            <li>Open the website where Surf Social is installed</li>
+            <li>Click on the chat widget to open it</li>
+            <li>Click on the "Support" tab</li>
+            <li>You should see "Admin Support Dashboard" instead of regular support chat</li>
+            <li>If there are support tickets, you should see a list of them</li>
+            <li>Click on a ticket to view the conversation</li>
+            <li>Try sending a reply as admin</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h3>Expected Behavior</h3>
+        <ul>
+            <li class="success">✅ Admin users see "Admin Support Dashboard" title</li>
+            <li class="success">✅ List of all support conversations is displayed</li>
+            <li class="success">✅ Unread conversations are highlighted</li>
+            <li class="success">✅ Clicking a conversation loads the full chat</li>
+            <li class="success">✅ Admin can send replies directly from the interface</li>
+            <li class="success">✅ Real-time updates work for both admin and users</li>
+            <li class="success">✅ Regular users still see their own support chat</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h3>API Endpoints Added</h3>
+        <ul>
+            <li class="info">GET /wp-json/surf-social/v1/chat/support/admin - List all support tickets</li>
+            <li class="info">GET /wp-json/surf-social/v1/chat/support/admin/conversation - Get specific conversation</li>
+            <li class="info">POST /wp-json/surf-social/v1/chat/support/admin/reply - Send admin reply</li>
+            <li class="info">POST /wp-json/surf-social/v1/chat/support/admin/mark-read - Mark as read</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h3>Key Features</h3>
+        <ul>
+            <li class="info">🔧 Admin detection via WordPress capabilities</li>
+            <li class="info">📋 Dashboard view showing all support conversations</li>
+            <li class="info">💬 Individual conversation management</li>
+            <li class="info">⚡ Real-time updates and broadcasting</li>
+            <li class="info">🎨 Modern, responsive UI design</li>
+            <li class="info">🔄 Auto-refresh every 5 seconds</li>
+            <li class="info">📱 Mobile-friendly interface</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h3>Troubleshooting</h3>
+        <p>If the admin interface doesn't appear:</p>
+        <ol>
+            <li>Check that you're logged in as an admin user</li>
+            <li>Clear browser cache and reload the page</li>
+            <li>Check browser console for JavaScript errors</li>
+            <li>Verify the plugin is active and up to date</li>
+        </ol>
+    </div>
+</body>
+</html>
