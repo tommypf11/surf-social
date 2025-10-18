@@ -1892,6 +1892,7 @@
         
         // Update admin dashboard if it's visible
         if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
+            console.log('Refreshing admin dashboard due to new support message');
             showAdminSupportDashboard();
         }
     }
@@ -1929,6 +1930,7 @@
         
         // Update admin dashboard if it's visible
         if (currentTab === 'support' && config.currentUser.isAdmin && !currentChatUser) {
+            console.log('Refreshing admin dashboard due to new admin support reply');
             showAdminSupportDashboard();
         }
         
@@ -2554,10 +2556,23 @@
             
             const data = await response.json();
             
-            // Update title
+            // Update title with back button
             const title = document.querySelector('.surf-chat-title');
             if (title) {
-                title.textContent = `Support Chat - ${data.user_info.user_name}`;
+                title.innerHTML = `
+                    <div class="surf-admin-back-header">
+                        <button class="surf-back-arrow" id="admin-back-btn">←</button>
+                        <span class="surf-admin-chat-title">Support Chat - ${data.user_info.user_name}</span>
+                    </div>
+                `;
+                
+                // Add event listener for back button
+                const backBtn = document.getElementById('admin-back-btn');
+                if (backBtn) {
+                    backBtn.addEventListener('click', () => {
+                        showAdminSupportDashboard();
+                    });
+                }
             }
             
             // Display conversation
@@ -2580,14 +2595,6 @@
      */
     function displayAdminSupportConversation(messages, userInfo) {
         let html = '<div class="surf-admin-conversation">';
-        
-        // Add back button inline with title
-        html += `
-            <div class="surf-admin-back-header">
-                <button class="surf-back-arrow" id="admin-back-btn">←</button>
-                <span class="surf-admin-chat-title">Support Chat - ${userInfo.user_name}</span>
-            </div>
-        `;
         
         if (messages.length === 0) {
             html += '<div class="surf-empty-state"><p>No messages in this conversation</p></div>';
@@ -2613,23 +2620,20 @@
         html += '</div>';
         chatMessages.innerHTML = html;
         
-        // Add event listener for back button
-        const backBtn = document.getElementById('admin-back-btn');
-        if (backBtn) {
-            backBtn.addEventListener('click', () => {
-                showAdminSupportDashboard();
-            });
-        }
+        // Scroll to bottom using requestAnimationFrame for better timing
+        requestAnimationFrame(() => {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
         
-        // Scroll to bottom with a longer delay to ensure DOM is fully updated
+        // Also try scrolling after a delay as backup
+        setTimeout(() => {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 100);
+        
+        // Final attempt after longer delay
         setTimeout(() => {
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }, 300);
-        
-        // Also try scrolling after a longer delay as backup
-        setTimeout(() => {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 500);
         
         // Update current chat user for sending messages
         currentChatUser = {
