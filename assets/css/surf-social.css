@@ -248,11 +248,14 @@
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    position: relative;
-    overflow: visible;
+    position: relative !important;
+    overflow: visible !important;
     border-radius: 12px 12px 0 0;
     margin: 0 2px;
     z-index: 1;
+    box-sizing: border-box !important;
+    text-align: center !important;
+    vertical-align: middle !important;
 }
 
 #surf-social-widget .surf-chat-tab.active {
@@ -267,29 +270,60 @@
     overflow: visible;
 }
 
-/* Tab Badge Styles */
-.surf-tab-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: var(--surf-primary);
-    color: white;
-    border-radius: 50%;
-    min-width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: bold;
-    border: 2px solid white;
-    z-index: 1000002;
-    padding: 0 4px;
-    line-height: 1;
+/* Tab Badge Styles - High specificity to override WordPress themes */
+#surf-social-widget .surf-tab-badge,
+#surf-social-widget .surf-chat-tab .surf-tab-badge {
+    position: absolute !important;
+    top: -8px !important;
+    right: -8px !important;
+    background: #ff4444 !important;
+    color: white !important;
+    border-radius: 50% !important;
+    min-width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    font-weight: bold !important;
+    border: 2px solid white !important;
+    z-index: 1000002 !important;
+    padding: 0 4px !important;
+    line-height: 1 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+    margin: 0 !important;
+    font-family: inherit !important;
+    text-decoration: none !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
 }
 
-.surf-tab-badge.hidden {
+#surf-social-widget .surf-tab-badge.hidden,
+#surf-social-widget .surf-chat-tab .surf-tab-badge.hidden {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Additional protection against theme interference */
+#surf-social-widget .surf-tab-badge *,
+#surf-social-widget .surf-chat-tab .surf-tab-badge * {
+    all: unset !important;
+    display: inherit !important;
+    color: inherit !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
+    line-height: inherit !important;
+}
+
+/* Ensure badges are not affected by theme transitions */
+#surf-social-widget .surf-tab-badge,
+#surf-social-widget .surf-chat-tab .surf-tab-badge {
+    transition: none !important;
+    animation: none !important;
 }
 
 
@@ -942,14 +976,16 @@
         z-index: 1000000;
     }
     
-    .surf-chat-tab {
+    #surf-social-widget .surf-chat-tab {
         padding: 11px 8px;
         font-size: 15px;
         font-weight: 600;
         color: white !important;
-        overflow: visible;
+        overflow: visible !important;
         border-radius: 12px 12px 0 0;
         margin: 0 2px;
+        position: relative !important;
+        box-sizing: border-box !important;
     }
     
     #surf-social-widget .surf-chat-tab.active {

@@ -92,6 +92,20 @@
         // Initialize guest registration if user is guest
         initGuestRegistration();
         
+        // Expose test functions for debugging
+        window.testTabNotifications = testTabNotifications;
+        window.debugTabStructure = debugTabStructure;
+        window.simulateMessage = function(tabType) {
+            console.log('Simulating message for tab:', tabType);
+            if (!chatDrawer.classList.contains('open')) {
+                unreadCount++;
+                tabUnreadCounts[tabType]++;
+                updateUnreadBadge();
+                updateTabBadges();
+                console.log('Unread counts updated:', tabUnreadCounts);
+            }
+        };
+        
         // Load friend chat list if we're on the friend tab
         if (currentTab === 'friend') {
             showFriendChatList();
@@ -2240,16 +2254,37 @@
      * Update tab badges for unread messages
      */
     function updateTabBadges() {
+        console.log('updateTabBadges called, tabUnreadCounts:', tabUnreadCounts);
         Object.keys(tabUnreadCounts).forEach(tabName => {
-            const badge = document.querySelector(`.surf-tab-badge[data-tab="${tabName}"]`);
+            // Try multiple selectors to find the badge
+            let badge = document.querySelector(`#surf-social-widget .surf-tab-badge[data-tab="${tabName}"]`);
+            if (!badge) {
+                badge = document.querySelector(`.surf-tab-badge[data-tab="${tabName}"]`);
+            }
+            if (!badge) {
+                badge = document.querySelector(`[data-tab="${tabName}"] .surf-tab-badge`);
+            }
+            
+            console.log(`Looking for badge with data-tab="${tabName}":`, badge);
             if (badge) {
                 const count = tabUnreadCounts[tabName];
+                console.log(`Tab ${tabName} count: ${count}`);
                 if (count > 0) {
                     badge.textContent = count > 99 ? '99+' : count;
-                    badge.style.display = 'flex';
+                    badge.style.setProperty('display', 'flex', 'important');
+                    badge.style.setProperty('visibility', 'visible', 'important');
+                    badge.style.setProperty('opacity', '1', 'important');
+                    badge.classList.remove('hidden');
+                    console.log(`Showing badge for ${tabName} with count ${count}`);
                 } else {
-                    badge.style.display = 'none';
+                    badge.style.setProperty('display', 'none', 'important');
+                    badge.style.setProperty('visibility', 'hidden', 'important');
+                    badge.style.setProperty('opacity', '0', 'important');
+                    badge.classList.add('hidden');
+                    console.log(`Hiding badge for ${tabName}`);
                 }
+            } else {
+                console.error(`Badge not found for tab: ${tabName}`);
             }
         });
     }
@@ -2261,6 +2296,49 @@
         tabUnreadCounts[tabName] = 0;
         updateTabBadges();
         updateUnreadBadge();
+    }
+    
+    /**
+     * Test function to manually add unread messages for testing
+     */
+    function testTabNotifications() {
+        console.log('Testing tab notifications...');
+        
+        // First check if badges exist
+        console.log('Checking for badges in DOM...');
+        const allBadges = document.querySelectorAll('.surf-tab-badge');
+        console.log('All badges found:', allBadges);
+        
+        tabUnreadCounts.web = 3;
+        tabUnreadCounts.friend = 2;
+        tabUnreadCounts.support = 1;
+        updateTabBadges();
+        console.log('Tab counts set for testing:', tabUnreadCounts);
+    }
+    
+    /**
+     * Debug function to check DOM structure
+     */
+    function debugTabStructure() {
+        console.log('=== DEBUGGING TAB STRUCTURE ===');
+        const tabs = document.querySelectorAll('.surf-chat-tab');
+        console.log('Found tabs:', tabs);
+        
+        tabs.forEach((tab, index) => {
+            console.log(`Tab ${index}:`, tab);
+            console.log(`  - data-tab:`, tab.getAttribute('data-tab'));
+            console.log(`  - children:`, tab.children);
+            
+            const badge = tab.querySelector('.surf-tab-badge');
+            console.log(`  - badge:`, badge);
+            if (badge) {
+                console.log(`    - data-tab:`, badge.getAttribute('data-tab'));
+                console.log(`    - display:`, getComputedStyle(badge).display);
+                console.log(`    - visibility:`, getComputedStyle(badge).visibility);
+                console.log(`    - opacity:`, getComputedStyle(badge).opacity);
+            }
+        });
+        console.log('=== END DEBUG ===');
     }
     
     /**
