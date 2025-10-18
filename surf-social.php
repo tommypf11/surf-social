@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.58
+Version: 1.0.60
 Author: Thomas Fraher
 */
 
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SURF_SOCIAL_VERSION', '1.0.57');
+define('SURF_SOCIAL_VERSION', '1.0.0');
 define('SURF_SOCIAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SURF_SOCIAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -59,10 +59,6 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_user_submissions', array($this, 'ajax_get_user_submissions'));
         add_action('wp_ajax_surf_social_get_messages', array($this, 'ajax_get_messages'));
         add_action('wp_ajax_surf_social_delete_message', array($this, 'ajax_delete_message'));
-        add_action('wp_ajax_surf_social_get_support_tickets', array($this, 'ajax_get_support_tickets'));
-        add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
-        add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
-        add_action('wp_ajax_surf_social_mark_support_read', array($this, 'ajax_mark_support_read'));
     }
     
     /**
@@ -82,108 +78,27 @@ class Surf_Social {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();
         
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        // Check if guests table exists
+        $guests_table = $wpdb->prefix . 'surf_social_guests';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$guests_table'");
         
-        // Check and create all tables
-        $tables_to_check = array(
-            'surf_social_messages',
-            'surf_social_individual_messages', 
-            'surf_social_support_messages',
-            'surf_social_guests'
-        );
-        
-        foreach ($tables_to_check as $table_name) {
-            $full_table_name = $wpdb->prefix . $table_name;
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$full_table_name'");
+        if (!$table_exists) {
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
             
-            if (!$table_exists) {
-                $this->create_table($table_name, $charset_collate);
-            }
+            $sql = "CREATE TABLE IF NOT EXISTS $guests_table (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                user_id varchar(100) NOT NULL,
+                name varchar(100) NOT NULL,
+                email varchar(255) NOT NULL,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY user_id (user_id),
+                KEY email (email),
+                KEY created_at (created_at)
+            ) $charset_collate;";
+            dbDelta($sql);
         }
-    }
-    
-    /**
-     * Create a specific table
-     */
-    private function create_table($table_name, $charset_collate) {
-        global $wpdb;
-        
-        $full_table_name = $wpdb->prefix . $table_name;
-        
-        switch ($table_name) {
-            case 'surf_social_messages':
-                $sql = "CREATE TABLE IF NOT EXISTS $full_table_name (
-                    id bigint(20) NOT NULL AUTO_INCREMENT,
-                    user_id varchar(100) NOT NULL,
-                    user_name varchar(100) NOT NULL,
-                    message text NOT NULL,
-                    channel varchar(50) NOT NULL DEFAULT 'web',
-                    created_at datetime DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY  (id),
-                    KEY user_id (user_id),
-                    KEY channel (channel),
-                    KEY created_at (created_at)
-                ) $charset_collate;";
-                break;
-                
-            case 'surf_social_individual_messages':
-                $sql = "CREATE TABLE IF NOT EXISTS $full_table_name (
-                    id bigint(20) NOT NULL AUTO_INCREMENT,
-                    sender_id varchar(100) NOT NULL,
-                    sender_name varchar(100) NOT NULL,
-                    recipient_id varchar(100) NOT NULL,
-                    recipient_name varchar(100) NOT NULL,
-                    message text NOT NULL,
-                    created_at datetime DEFAULT CURRENT_TIMESTAMP,
-                    read_at datetime NULL,
-                    PRIMARY KEY  (id),
-                    KEY sender_id (sender_id),
-                    KEY recipient_id (recipient_id),
-                    KEY created_at (created_at)
-                ) $charset_collate;";
-                break;
-                
-            case 'surf_social_support_messages':
-                $sql = "CREATE TABLE IF NOT EXISTS $full_table_name (
-                    id bigint(20) NOT NULL AUTO_INCREMENT,
-                    user_id varchar(100) NOT NULL,
-                    user_name varchar(100) NOT NULL,
-                    admin_id bigint(20) NULL,
-                    admin_name varchar(100) NULL,
-                    message text NOT NULL,
-                    message_type enum('user', 'admin') DEFAULT 'user',
-                    is_read_by_admin tinyint(1) DEFAULT 0,
-                    is_read_by_user tinyint(1) DEFAULT 1,
-                    created_at datetime DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY  (id),
-                    KEY user_id (user_id),
-                    KEY admin_id (admin_id),
-                    KEY is_read_by_admin (is_read_by_admin),
-                    KEY is_read_by_user (is_read_by_user),
-                    KEY created_at (created_at)
-                ) $charset_collate;";
-                break;
-                
-            case 'surf_social_guests':
-                $sql = "CREATE TABLE IF NOT EXISTS $full_table_name (
-                    id bigint(20) NOT NULL AUTO_INCREMENT,
-                    user_id varchar(100) NOT NULL,
-                    name varchar(100) NOT NULL,
-                    email varchar(255) NOT NULL,
-                    created_at datetime DEFAULT CURRENT_TIMESTAMP,
-                    updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    PRIMARY KEY  (id),
-                    UNIQUE KEY user_id (user_id),
-                    KEY email (email),
-                    KEY created_at (created_at)
-                ) $charset_collate;";
-                break;
-                
-            default:
-                return; // Unknown table
-        }
-        
-        dbDelta($sql);
     }
     
     /**
@@ -500,7 +415,7 @@ class Surf_Social {
                 'channel' => sanitize_text_field($channel),
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%s', '%s', '%s')
+            array('%d', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -613,8 +528,8 @@ class Surf_Social {
         $messages = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT * FROM $table_name 
-                WHERE (sender_id = %s AND recipient_id = %s) 
-                OR (sender_id = %s AND recipient_id = %s)
+                WHERE (sender_id = %d AND recipient_id = %d) 
+                OR (sender_id = %d AND recipient_id = %d)
                 ORDER BY created_at DESC LIMIT %d OFFSET %d",
                 $user_id, $target_user_id, $target_user_id, $user_id, $per_page, $offset
             ),
@@ -655,15 +570,11 @@ class Surf_Social {
                 'message' => sanitize_textarea_field($message),
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%s', '%s', '%s', '%s')
+            array('%d', '%s', '%d', '%s', '%s', '%s')
         );
         
         if ($result) {
             $message_id = $wpdb->insert_id;
-            
-            // Broadcast individual message via real-time
-            $this->broadcast_individual_message($sender_id, $sender_name, $recipient_id, $recipient_name, $message);
-            
             return new WP_REST_Response(array(
                 'success' => true,
                 'message_id' => $message_id
@@ -690,20 +601,20 @@ class Surf_Social {
             $wpdb->prepare(
                 "SELECT 
                     CASE 
-                        WHEN sender_id = %s THEN recipient_id 
+                        WHEN sender_id = %d THEN recipient_id 
                         ELSE sender_id 
                     END as other_user_id,
                     CASE 
-                        WHEN sender_id = %s THEN recipient_name 
+                        WHEN sender_id = %d THEN recipient_name 
                         ELSE sender_name 
                     END as other_user_name,
                     MAX(created_at) as last_message_time,
                     (SELECT message FROM $table_name 
-                     WHERE ((sender_id = %s AND recipient_id = other_user_id) 
-                            OR (sender_id = other_user_id AND recipient_id = %s))
+                     WHERE ((sender_id = %d AND recipient_id = other_user_id) 
+                            OR (sender_id = other_user_id AND recipient_id = %d))
                      ORDER BY created_at DESC LIMIT 1) as last_message
                 FROM $table_name 
-                WHERE sender_id = %s OR recipient_id = %s
+                WHERE sender_id = %d OR recipient_id = %d
                 GROUP BY other_user_id, other_user_name
                 ORDER BY last_message_time DESC",
                 $user_id, $user_id, $user_id, $user_id, $user_id, $user_id
@@ -733,7 +644,7 @@ class Surf_Social {
         $messages = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT * FROM $table_name 
-                WHERE user_id = %s 
+                WHERE user_id = %d 
                 ORDER BY created_at DESC LIMIT %d OFFSET %d",
                 $user_id, $per_page, $offset
             ),
@@ -765,10 +676,6 @@ class Surf_Social {
             return new WP_Error('invalid_data', 'Message and user ID are required', array('status' => 400));
         }
         
-        // Set read status based on message type
-        $is_read_by_admin = ($message_type === 'admin') ? 1 : 0;
-        $is_read_by_user = ($message_type === 'user') ? 1 : 0;
-        
         $result = $wpdb->insert(
             $table_name,
             array(
@@ -778,19 +685,13 @@ class Surf_Social {
                 'admin_name' => sanitize_text_field($admin_name),
                 'message' => sanitize_textarea_field($message),
                 'message_type' => sanitize_text_field($message_type),
-                'is_read_by_admin' => $is_read_by_admin,
-                'is_read_by_user' => $is_read_by_user,
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%d', '%s', '%s', '%s', '%d', '%d', '%s')
+            array('%d', '%s', '%d', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
             $message_id = $wpdb->insert_id;
-            
-            // Broadcast support message via real-time
-            $this->broadcast_support_message($user_id, $user_name, $message, $message_type);
-            
             return new WP_REST_Response(array(
                 'success' => true,
                 'message_id' => $message_id
@@ -855,7 +756,7 @@ class Surf_Social {
             'unique_users' => $wpdb->get_var("SHOW TABLES LIKE '$web_messages_table'") ? 
                 $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $web_messages_table") : 0,
             'active_support_tickets' => $wpdb->get_var("SHOW TABLES LIKE '$support_messages_table'") ? 
-                $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE is_read_by_admin = 0") : 0,
+                $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'") : 0,
             'user_submissions' => $get_count($guests_table)
         );
         
@@ -1061,62 +962,9 @@ class Surf_Social {
      * Broadcast via Pusher
      */
     private function broadcast_via_pusher($event, $data) {
-        $pusher_key = get_option('surf_social_pusher_key');
-        $pusher_secret = get_option('surf_social_pusher_secret');
-        $pusher_cluster = get_option('surf_social_pusher_cluster', 'us3');
-        
-        if (!$pusher_key || !$pusher_secret) {
-            error_log('Pusher not configured properly');
-            return;
-        }
-        
-        $channel = 'private-surf-social';
-        
-        // Create the request body
-        $body = json_encode(array(
-            'name' => $event,
-            'channel' => $channel,
-            'data' => json_encode($data)
-        ));
-        
-        // Create MD5 hash of the body
-        $body_md5 = md5($body);
-        
-        // Create the auth string for signature
-        $auth_string = "POST\n/apps/{$pusher_key}/events\n{$body_md5}";
-        
-        // Create HMAC signature
-        $signature = hash_hmac('sha256', $auth_string, $pusher_secret);
-        
-        // Pusher REST API URL
-        $url = "https://api-{$pusher_cluster}.pusherapp.com/apps/{$pusher_key}/events";
-        
-        // Prepare the request
-        $args = array(
-            'method' => 'POST',
-            'headers' => array(
-                'Content-Type' => 'application/json',
-                'X-Pusher-Key' => $pusher_key,
-                'X-Pusher-Signature' => $signature
-            ),
-            'body' => $body,
-            'timeout' => 10
-        );
-        
-        // Send the request
-        $response = wp_remote_post($url, $args);
-        
-        if (is_wp_error($response)) {
-            error_log('Pusher broadcast error: ' . $response->get_error_message());
-        } else {
-            $response_code = wp_remote_retrieve_response_code($response);
-            if ($response_code !== 200) {
-                $response_body = wp_remote_retrieve_body($response);
-                error_log('Pusher broadcast failed: ' . $response_code . ' - ' . $response_body);
-            } else {
-                error_log('Pusher broadcast successful for event: ' . $event);
-            }
-        }
+        // For now, we'll rely on the frontend to handle real-time updates
+        // In a full implementation, you'd use the Pusher PHP SDK here
+        // The frontend will handle the deletion through the admin interface
     }
     
     /**
@@ -1145,7 +993,7 @@ class Surf_Social {
             'total_support_messages' => $wpdb->get_var("SELECT COUNT(*) FROM $support_messages_table"),
             'messages_today' => $wpdb->get_var("SELECT COUNT(*) FROM $web_messages_table WHERE DATE(created_at) = CURDATE()"),
             'unique_users' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $web_messages_table"),
-            'active_support_tickets' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE is_read_by_admin = 0"),
+            'active_support_tickets' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'"),
             'user_submissions' => $wpdb->get_var("SELECT COUNT(*) FROM $guests_table")
         );
         
@@ -1236,7 +1084,7 @@ class Surf_Social {
         $table_name = $wpdb->prefix . 'surf_social_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            user_id varchar(100) NOT NULL,
+            user_id bigint(20) NOT NULL,
             user_name varchar(100) NOT NULL,
             message text NOT NULL,
             channel varchar(50) NOT NULL DEFAULT 'web',
@@ -1248,19 +1096,13 @@ class Surf_Social {
         ) $charset_collate;";
         dbDelta($sql);
         
-        // Migrate existing tables to use varchar for user_id
-        self::migrate_user_id_columns();
-        
-        // Migrate support messages schema
-        self::migrate_support_messages_schema();
-        
         // Individual messages table
         $table_name = $wpdb->prefix . 'surf_social_individual_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            sender_id varchar(100) NOT NULL,
+            sender_id bigint(20) NOT NULL,
             sender_name varchar(100) NOT NULL,
-            recipient_id varchar(100) NOT NULL,
+            recipient_id bigint(20) NOT NULL,
             recipient_name varchar(100) NOT NULL,
             message text NOT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -1276,20 +1118,18 @@ class Surf_Social {
         $table_name = $wpdb->prefix . 'surf_social_support_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            user_id varchar(100) NOT NULL,
+            user_id bigint(20) NOT NULL,
             user_name varchar(100) NOT NULL,
             admin_id bigint(20) NULL,
             admin_name varchar(100) NULL,
             message text NOT NULL,
             message_type enum('user', 'admin') DEFAULT 'user',
-                    is_read_by_admin tinyint(1) DEFAULT 0,
-                    is_read_by_user tinyint(1) DEFAULT 1,
+            status enum('open', 'closed', 'resolved') DEFAULT 'open',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY user_id (user_id),
             KEY admin_id (admin_id),
-            KEY is_read_by_admin (is_read_by_admin),
-            KEY is_read_by_user (is_read_by_user),
+            KEY status (status),
             KEY created_at (created_at)
         ) $charset_collate;";
         dbDelta($sql);
@@ -1325,326 +1165,6 @@ class Surf_Social {
     public static function deactivate() {
         // Optional: Clean up if needed
     }
-    
-    /**
-     * Migrate user_id columns from bigint to varchar
-     */
-    private static function migrate_user_id_columns() {
-        global $wpdb;
-        
-        $tables = array(
-            'surf_social_messages' => array('user_id'),
-            'surf_social_individual_messages' => array('sender_id', 'recipient_id'),
-            'surf_social_support_messages' => array('user_id')
-        );
-        
-        foreach ($tables as $table => $columns) {
-            $table_name = $wpdb->prefix . $table;
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
-            
-            if (!$table_exists) {
-                continue;
-            }
-            
-            foreach ($columns as $column) {
-                $column_info = $wpdb->get_row($wpdb->prepare(
-                    "SHOW COLUMNS FROM $table_name LIKE %s",
-                    $column
-                ), ARRAY_A);
-                
-                if ($column_info && strpos($column_info['Type'], 'bigint') !== false) {
-                    $sql = "ALTER TABLE $table_name MODIFY COLUMN $column varchar(100) NOT NULL";
-                    $wpdb->query($sql);
-                }
-            }
-        }
-    }
-    
-    /**
-     * Migrate support messages table from status to read/unread columns
-     */
-    private static function migrate_support_messages_schema() {
-        global $wpdb;
-        
-        $table_name = $wpdb->prefix . 'surf_social_support_messages';
-        
-        // Check if table exists
-        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
-            return;
-        }
-        
-        // Check if status column exists
-        $status_column = $wpdb->get_row("SHOW COLUMNS FROM $table_name LIKE 'status'");
-        if ($status_column) {
-            // Add new columns
-            $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_read_by_admin tinyint(1) DEFAULT 0");
-            $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_read_by_user tinyint(1) DEFAULT 1");
-            
-            // Migrate existing data: open = unread by admin, closed = read by admin
-            $wpdb->query("UPDATE $table_name SET is_read_by_admin = 0 WHERE status = 'open'");
-            $wpdb->query("UPDATE $table_name SET is_read_by_admin = 1 WHERE status = 'closed'");
-            
-            // Drop old status column
-            $wpdb->query("ALTER TABLE $table_name DROP COLUMN status");
-            
-            // Add new indexes
-            $wpdb->query("ALTER TABLE $table_name ADD KEY is_read_by_admin (is_read_by_admin)");
-            $wpdb->query("ALTER TABLE $table_name ADD KEY is_read_by_user (is_read_by_user)");
-        }
-    }
-    
-    /**
-     * AJAX handler for getting support tickets
-     */
-    public function ajax_get_support_tickets() {
-        check_ajax_referer('surf_social_stats', 'nonce');
-        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
-        
-        global $wpdb;
-        $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        $status_filter = sanitize_text_field($_GET['status'] ?? 'all');
-        
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$support_table'");
-        if (!$table_exists) {
-            wp_send_json_success(array('tickets' => array()));
-        }
-        
-        $where_clause = '';
-        if ($status_filter === 'unread') {
-            $where_clause = "WHERE is_read_by_admin = 0";
-        } elseif ($status_filter === 'read') {
-            $where_clause = "WHERE is_read_by_admin = 1";
-        }
-        
-        $tickets = $wpdb->get_results(
-            "SELECT 
-                user_id,
-                user_name,
-                MAX(created_at) as last_message_time,
-                COUNT(*) as message_count,
-                MAX(is_read_by_admin) as is_read_by_admin,
-                MAX(is_read_by_user) as is_read_by_user,
-                (SELECT message FROM $support_table s2 
-                 WHERE s2.user_id = s1.user_id 
-                 ORDER BY created_at DESC LIMIT 1) as last_message
-            FROM $support_table s1 
-            $where_clause
-            GROUP BY user_id, user_name
-            ORDER BY last_message_time DESC",
-            ARRAY_A
-        );
-        
-        wp_send_json_success(array('tickets' => $tickets));
-    }
-    
-    /**
-     * AJAX handler for getting support conversation
-     */
-    public function ajax_get_support_conversation() {
-        check_ajax_referer('surf_social_stats', 'nonce');
-        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
-        
-        global $wpdb;
-        $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        $user_id = $_GET['user_id'];
-        
-        if (empty($user_id) && $user_id !== '0' && $user_id !== 0) {
-            wp_send_json_error('User ID required');
-        }
-        
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$support_table'");
-        if (!$table_exists) {
-            wp_send_json_success(array('messages' => array(), 'user_info' => null));
-        }
-        
-        $messages = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT * FROM $support_table 
-                WHERE user_id = %s 
-                ORDER BY created_at ASC",
-                $user_id
-            ),
-            ARRAY_A
-        );
-        
-        $user_info = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT user_id, user_name, status FROM $support_table 
-                WHERE user_id = %s 
-                LIMIT 1",
-                $user_id
-            ),
-            ARRAY_A
-        );
-        
-        
-        wp_send_json_success(array('messages' => $messages, 'user_info' => $user_info));
-    }
-    
-    /**
-     * AJAX handler for sending admin reply
-     */
-    public function ajax_send_admin_reply() {
-        check_ajax_referer('surf_social_stats', 'nonce');
-        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
-        
-        global $wpdb;
-        $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        $user_id = $_POST['user_id'];
-        $message = sanitize_textarea_field($_POST['message']);
-        $admin_id = get_current_user_id();
-        $admin_name = wp_get_current_user()->display_name;
-        
-        if ((empty($user_id) && $user_id !== '0' && $user_id !== 0) || empty($message)) {
-            wp_send_json_error('User ID and message required');
-        }
-        
-        $result = $wpdb->insert(
-            $support_table,
-            array(
-                'user_id' => $user_id,
-                'user_name' => $wpdb->get_var($wpdb->prepare("SELECT user_name FROM $support_table WHERE user_id = %s LIMIT 1", $user_id)),
-                'admin_id' => $admin_id,
-                'admin_name' => $admin_name,
-                'message' => $message,
-                'message_type' => 'admin',
-                'status' => 'open',
-                'created_at' => current_time('mysql')
-            ),
-            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
-        );
-        
-        if ($result) {
-            // Broadcast to user via real-time
-            $this->broadcast_admin_reply($user_id, $message, $admin_name);
-            wp_send_json_success('Reply sent successfully');
-        } else {
-            wp_send_json_error('Failed to send reply');
-        }
-    }
-    
-    /**
-     * AJAX handler for marking support messages as read
-     */
-    public function ajax_mark_support_read() {
-        check_ajax_referer('surf_social_stats', 'nonce');
-        if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
-        
-        global $wpdb;
-        $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        $user_id = sanitize_text_field($_POST['user_id']);
-        
-        if (empty($user_id)) {
-            wp_send_json_error('User ID required');
-        }
-        
-        $result = $wpdb->update(
-            $support_table,
-            array('is_read_by_admin' => 1),
-            array('user_id' => $user_id, 'is_read_by_admin' => 0),
-            array('%d'),
-            array('%s', '%d')
-        );
-        
-        if ($result !== false) {
-            wp_send_json_success('Messages marked as read');
-        } else {
-            wp_send_json_error('Failed to mark messages as read');
-        }
-    }
-    
-    /**
-     * Broadcast admin reply to user
-     */
-    private function broadcast_admin_reply($user_id, $message, $admin_name) {
-        error_log('Broadcasting admin reply - user_id: ' . $user_id . ', message: ' . $message . ', admin_name: ' . $admin_name);
-        
-        $pusher_key = get_option('surf_social_pusher_key');
-        $websocket_url = get_option('surf_social_websocket_url');
-        
-        if ($pusher_key) {
-            error_log('Broadcasting via Pusher');
-            $this->broadcast_via_pusher('admin-support-reply', array(
-                'user_id' => $user_id,
-                'message' => $message,
-                'admin_name' => $admin_name,
-                'created_at' => current_time('mysql')
-            ));
-        } else {
-            error_log('Pusher not configured, skipping broadcast');
-        }
-        
-        if ($websocket_url) {
-            $this->broadcast_via_websocket('admin-support-reply', array(
-                'user_id' => $user_id,
-                'message' => $message,
-                'admin_name' => $admin_name,
-                'created_at' => current_time('mysql')
-            ));
-        }
-    }
-    
-    /**
-     * Broadcast individual message to specific user
-     */
-    private function broadcast_individual_message($sender_id, $sender_name, $recipient_id, $recipient_name, $message) {
-        $data = array(
-            'user' => array(
-                'id' => $sender_id,
-                'name' => $sender_name,
-                'color' => $this->get_user_color($sender_id)
-            ),
-            'targetUser' => array(
-                'id' => $recipient_id,
-                'name' => $recipient_name
-            ),
-            'message' => $message,
-            'created_at' => current_time('mysql'),
-            'type' => 'individual-chat'
-        );
-        
-        // Try Pusher first
-        if (get_option('surf_social_use_pusher', '1') === '1') {
-            $this->broadcast_via_pusher('individual-message', $data);
-        }
-        
-        // Try WebSocket as fallback
-        $websocket_url = get_option('surf_social_websocket_url');
-        if ($websocket_url) {
-            $this->broadcast_via_websocket('individual-message', $data);
-        }
-    }
-    
-    /**
-     * Broadcast support message
-     */
-    private function broadcast_support_message($user_id, $user_name, $message, $message_type) {
-        $data = array(
-            'user' => array(
-                'id' => $user_id,
-                'name' => $user_name,
-                'color' => $this->get_user_color($user_id)
-            ),
-            'message' => $message,
-            'created_at' => current_time('mysql'),
-            'type' => 'support-chat',
-            'message_type' => $message_type
-        );
-        
-        // Try Pusher first
-        if (get_option('surf_social_use_pusher', '1') === '1') {
-            $this->broadcast_via_pusher('support-message', $data);
-        }
-        
-        // Try WebSocket as fallback
-        $websocket_url = get_option('surf_social_websocket_url');
-        if ($websocket_url) {
-            $this->broadcast_via_websocket('support-message', $data);
-        }
-    }
-    
-    
-    
 }
 
 // Initialize plugin
