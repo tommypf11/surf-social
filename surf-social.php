@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.66
+Version: 1.0.67
 Author: Thomas Fraher
 */
 
@@ -1037,24 +1037,100 @@ class Surf_Social {
      * Broadcast via Pusher
      */
     private function broadcast_via_pusher($event, $data) {
-        // For now, we'll rely on the frontend to handle real-time updates
-        // In a full implementation, you'd use the Pusher PHP SDK here
-        // The frontend will handle the deletion through the admin interface
+        error_log("Surf Social Debug - Attempting to broadcast via Pusher: $event");
+        
+        // Get Pusher configuration
+        $pusher_key = get_option('surf_social_pusher_key');
+        $pusher_secret = get_option('surf_social_pusher_secret');
+        $pusher_cluster = get_option('surf_social_pusher_cluster');
+        
+        if (empty($pusher_key) || empty($pusher_secret)) {
+            error_log("Surf Social Debug - Pusher not configured properly");
+            return false;
+        }
+        
+        // Use WordPress HTTP API to send to Pusher
+        $pusher_url = "https://api.pusherapp.com/apps/$pusher_key/events";
+        
+        $body = array(
+            'name' => $event,
+            'data' => json_encode($data),
+            'channel' => 'surf-social-channel'
+        );
+        
+        $response = wp_remote_post($pusher_url, array(
+            'body' => $body,
+            'headers' => array(
+                'Content-Type' => 'application/x-www-form-urlencoded'
+            ),
+            'timeout' => 10
+        ));
+        
+        if (is_wp_error($response)) {
+            error_log("Surf Social Debug - Pusher broadcast failed: " . $response->get_error_message());
+            return false;
+        }
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code === 200) {
+            error_log("Surf Social Debug - Pusher broadcast successful");
+            return true;
+        } else {
+            error_log("Surf Social Debug - Pusher broadcast failed with code: $response_code");
+            return false;
+        }
     }
     
     /**
      * Broadcast via WebSocket
      */
     private function broadcast_via_websocket($event, $data) {
-        // For now, we'll rely on the frontend to handle real-time updates
-        // In a full implementation, you'd use a WebSocket server here
-        // The frontend will handle the deletion through the admin interface
+        error_log("Surf Social Debug - Attempting to broadcast via WebSocket: $event");
+        
+        $websocket_url = get_option('surf_social_websocket_url');
+        if (empty($websocket_url)) {
+            error_log("Surf Social Debug - WebSocket URL not configured");
+            return false;
+        }
+        
+        $payload = json_encode(array(
+            'type' => $event,
+            'data' => $data
+        ));
+        
+        $response = wp_remote_post($websocket_url, array(
+            'body' => $payload,
+            'headers' => array(
+                'Content-Type' => 'application/json'
+            ),
+            'timeout' => 10
+        ));
+        
+        if (is_wp_error($response)) {
+            error_log("Surf Social Debug - WebSocket broadcast failed: " . $response->get_error_message());
+            return false;
+        }
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code === 200) {
+            error_log("Surf Social Debug - WebSocket broadcast successful");
+            return true;
+        } else {
+            error_log("Surf Social Debug - WebSocket broadcast failed with code: $response_code");
+            return false;
+        }
     }
     
     /**
      * Broadcast admin reply to frontend
      */
     private function broadcast_admin_reply($user_id, $user_name, $message, $admin_name) {
+        error_log("Surf Social Debug - broadcast_admin_reply called");
+        error_log("Surf Social Debug - user_id: $user_id");
+        error_log("Surf Social Debug - user_name: $user_name");
+        error_log("Surf Social Debug - message: $message");
+        error_log("Surf Social Debug - admin_name: $admin_name");
+        
         $data = array(
             'type' => 'admin-support-reply',
             'user_id' => $user_id,
@@ -1064,15 +1140,33 @@ class Surf_Social {
             'created_at' => current_time('mysql')
         );
         
+        error_log("Surf Social Debug - Broadcasting data: " . json_encode($data));
+        
+        $pusher_success = false;
+        $websocket_success = false;
+        
         // Try Pusher first
         if (get_option('surf_social_use_pusher', '1') === '1') {
-            $this->broadcast_via_pusher('admin-support-reply', $data);
+            error_log("Surf Social Debug - Attempting Pusher broadcast");
+            $pusher_success = $this->broadcast_via_pusher('admin-support-reply', $data);
+        } else {
+            error_log("Surf Social Debug - Pusher disabled");
         }
         
         // Try WebSocket as fallback
         $websocket_url = get_option('surf_social_websocket_url');
         if ($websocket_url) {
-            $this->broadcast_via_websocket('admin-support-reply', $data);
+            error_log("Surf Social Debug - Attempting WebSocket broadcast");
+            $websocket_success = $this->broadcast_via_websocket('admin-support-reply', $data);
+        } else {
+            error_log("Surf Social Debug - WebSocket URL not configured");
+        }
+        
+        error_log("Surf Social Debug - Broadcast results - Pusher: " . ($pusher_success ? 'success' : 'failed') . ", WebSocket: " . ($websocket_success ? 'success' : 'failed'));
+        
+        // If both fail, we'll rely on polling/refresh
+        if (!$pusher_success && !$websocket_success) {
+            error_log("Surf Social Debug - Both broadcasting methods failed, relying on polling");
         }
     }
     
