@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.81
+Version: 1.0.82
 Author: Thomas Fraher
 */
 
@@ -898,26 +898,72 @@ class Surf_Social {
         global $wpdb;
         $table_name = $wpdb->prefix . 'surf_social_support_messages';
         
-        $tickets = $wpdb->get_results(
-            "SELECT 
-                user_id,
-                user_name,
-                MAX(created_at) as last_message_time,
-                COUNT(*) as message_count,
-                status,
-                CASE 
-                    WHEN MAX(admin_read_at) IS NOT NULL THEN 1 
-                    ELSE 0 
-                END as is_read_by_admin,
-                (SELECT message FROM $table_name t2 
-                 WHERE t2.user_id = t1.user_id 
-                 ORDER BY t2.created_at DESC 
-                 LIMIT 1) as last_message
-            FROM $table_name t1
-            GROUP BY user_id, user_name, status
-            ORDER BY last_message_time DESC",
-            ARRAY_A
-        );
+        // Debug logging
+        error_log("Surf Social Debug - get_support_tickets called");
+        error_log("Table name: " . $table_name);
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+        if (!$table_exists) {
+            error_log("Surf Social Debug - Table $table_name does not exist");
+            return new WP_Error('table_not_found', 'Support messages table not found', array('status' => 500));
+        }
+        
+        // Check if there are any messages at all
+        $total_messages = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+        error_log("Surf Social Debug - Total messages in table: " . $total_messages);
+        
+        // Check if admin_read_at column exists
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'admin_read_at'");
+        $has_admin_read_at = !empty($column_exists);
+        error_log("Surf Social Debug - admin_read_at column exists: " . ($has_admin_read_at ? 'yes' : 'no'));
+        
+        if ($has_admin_read_at) {
+            $tickets = $wpdb->get_results(
+                "SELECT 
+                    user_id,
+                    user_name,
+                    MAX(created_at) as last_message_time,
+                    COUNT(*) as message_count,
+                    status,
+                    CASE 
+                        WHEN MAX(admin_read_at) IS NOT NULL THEN 1 
+                        ELSE 0 
+                    END as is_read_by_admin,
+                    (SELECT message FROM $table_name t2 
+                     WHERE t2.user_id = t1.user_id 
+                     ORDER BY t2.created_at DESC 
+                     LIMIT 1) as last_message
+                FROM $table_name t1
+                GROUP BY user_id, user_name, status
+                ORDER BY last_message_time DESC",
+                ARRAY_A
+            );
+        } else {
+            // Fallback for tables without admin_read_at column
+            $tickets = $wpdb->get_results(
+                "SELECT 
+                    user_id,
+                    user_name,
+                    MAX(created_at) as last_message_time,
+                    COUNT(*) as message_count,
+                    status,
+                    0 as is_read_by_admin,
+                    (SELECT message FROM $table_name t2 
+                     WHERE t2.user_id = t1.user_id 
+                     ORDER BY t2.created_at DESC 
+                     LIMIT 1) as last_message
+                FROM $table_name t1
+                GROUP BY user_id, user_name, status
+                ORDER BY last_message_time DESC",
+                ARRAY_A
+            );
+        }
+        
+        error_log("Surf Social Debug - Found " . count($tickets) . " tickets");
+        if (count($tickets) > 0) {
+            error_log("Surf Social Debug - First ticket: " . print_r($tickets[0], true));
+        }
         
         return new WP_REST_Response(array('tickets' => $tickets), 200);
     }

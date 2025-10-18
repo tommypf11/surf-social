@@ -2446,6 +2446,10 @@
         chatMessages.innerHTML = '<div class="surf-loading">Loading support tickets...</div>';
         
         try {
+            console.log('Loading admin support tickets...');
+            console.log('API URL:', config.apiUrl);
+            console.log('Nonce:', config.nonce);
+            
             // Load all support tickets
             const response = await fetch(`${config.apiUrl}chat/support/admin`, {
                 headers: {
@@ -2453,15 +2457,20 @@
                 }
             });
             
+            console.log('Admin support tickets response status:', response.status);
+            
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const data = await response.json();
+            console.log('Admin support tickets data:', data);
             
             if (data.tickets && data.tickets.length > 0) {
+                console.log('Found', data.tickets.length, 'support tickets');
                 displayAdminSupportTickets(data.tickets);
             } else {
+                console.log('No support tickets found');
                 chatMessages.innerHTML = '<div class="surf-empty-state"><p>No support tickets found</p></div>';
             }
             
