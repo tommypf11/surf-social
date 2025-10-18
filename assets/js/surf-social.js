@@ -852,6 +852,7 @@
                     // Load messages for each conversation
                     for (const conv of data.conversations) {
                         if (conv.other_user_id && conv.other_user_name) {
+                            console.log('Loading conversation for user:', conv.other_user_id, 'name:', conv.other_user_name);
                             await loadConversationMessages(conv.other_user_id, conv.other_user_name);
                         }
                     }
@@ -937,8 +938,12 @@
                     
                     if (validMessages.length > 0) {
                         // Store messages in individualChats for quick access
+                        // Store with both string and number versions to handle type mismatches
                         individualChats.set(userId, validMessages);
+                        individualChats.set(String(userId), validMessages);
+                        individualChats.set(Number(userId), validMessages);
                         console.log('Pre-loaded', validMessages.length, 'messages for user:', userId);
+                        console.log('individualChats now has keys:', Array.from(individualChats.keys()));
                     }
                 }
             }
@@ -1085,11 +1090,31 @@
         }
         
         // Check if we already have messages for this user
-        if (individualChats.has(user.id) && individualChats.get(user.id).length > 0) {
-            console.log('Loading cached messages for user:', user.id);
-            renderMessages(individualChats.get(user.id));
+        console.log('Checking for cached messages for user:', user.id, 'type:', typeof user.id);
+        console.log('Available cached users:', Array.from(individualChats.keys()));
+        console.log('individualChats.has(user.id):', individualChats.has(user.id));
+        
+        // Try both string and number versions of the user ID
+        const userIdString = String(user.id);
+        const userIdNumber = Number(user.id);
+        const hasStringId = individualChats.has(userIdString);
+        const hasNumberId = individualChats.has(userIdNumber);
+        
+        console.log('Checking string ID:', userIdString, 'has:', hasStringId);
+        console.log('Checking number ID:', userIdNumber, 'has:', hasNumberId);
+        
+        let cachedMessages = null;
+        if (hasStringId && individualChats.get(userIdString).length > 0) {
+            cachedMessages = individualChats.get(userIdString);
+        } else if (hasNumberId && individualChats.get(userIdNumber).length > 0) {
+            cachedMessages = individualChats.get(userIdNumber);
+        }
+        
+        if (cachedMessages) {
+            console.log('Loading cached messages for user:', user.id, 'Count:', cachedMessages.length);
+            renderMessages(cachedMessages);
         } else {
-            console.log('Loading fresh messages for user:', user.id);
+            console.log('No cached messages found, loading fresh messages for user:', user.id);
             // Load messages for this user
             loadIndividualChatMessages(user);
         }
@@ -1128,17 +1153,23 @@
                 });
                 
                 if (validMessages.length > 0) {
-                    // Store messages locally
+                    // Store messages locally with both string and number versions
                     individualChats.set(user.id, validMessages);
+                    individualChats.set(String(user.id), validMessages);
+                    individualChats.set(Number(user.id), validMessages);
                     renderMessages(validMessages);
                 } else {
                     console.warn('No valid messages found in response');
                     individualChats.set(user.id, []);
+                    individualChats.set(String(user.id), []);
+                    individualChats.set(Number(user.id), []);
                     showEmptyState(`Start a conversation with ${user.name}`);
                 }
             } else {
                 // Initialize empty chat for this user
                 individualChats.set(user.id, []);
+                individualChats.set(String(user.id), []);
+                individualChats.set(Number(user.id), []);
                 showEmptyState(`Start a conversation with ${user.name}`);
             }
         } catch (error) {
