@@ -896,41 +896,42 @@
      * Load support messages
      */
     async function loadSupportMessages() {
-        chatMessages.innerHTML = '<div class="surf-loading"></div>';
+        // Don't show loading if we're just refreshing
+        if (!chatMessages.querySelector('.surf-loading')) {
+            chatMessages.innerHTML = '<div class="surf-loading"></div>';
+        }
         
         try {
+            console.log('Loading support messages for user:', config.currentUser.id);
+            console.log('API URL:', config.apiUrl);
+            console.log('Nonce:', config.nonce);
+            
             const response = await fetch(`${config.apiUrl}chat/support?user_id=${config.currentUser.id}`, {
                 headers: {
                     'X-WP-Nonce': config.nonce
                 }
             });
             
+            console.log('Support messages response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
+            console.log('Support messages data:', data);
             
             chatMessages.innerHTML = '';
             
             if (data.messages && data.messages.length > 0) {
-                // Merge with existing local messages instead of replacing
-                const existingMessages = individualChats.get('admin') || [];
-                const allMessages = [...data.messages, ...existingMessages];
-                
-                // Remove duplicates based on message content and timestamp
-                const uniqueMessages = allMessages.filter((message, index, self) => 
-                    index === self.findIndex(m => 
-                        m.message === message.message && 
-                        m.created_at === message.created_at &&
-                        m.user_id === message.user_id
-                    )
-                );
-                
-                // Sort by created_at
-                uniqueMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                console.log('Found', data.messages.length, 'support messages');
                 
                 // Store messages locally
-                individualChats.set('admin', uniqueMessages);
+                individualChats.set('admin', data.messages);
                 
-                renderMessages(uniqueMessages);
+                renderMessages(data.messages);
             } else {
+                console.log('No support messages found');
                 // Show existing local messages if any
                 const existingMessages = individualChats.get('admin') || [];
                 if (existingMessages.length > 0) {
@@ -940,13 +941,15 @@
                 }
             }
         } catch (error) {
+            console.error('Failed to load support messages:', error);
+            
             // Show existing local messages if any, even on error
             const existingMessages = individualChats.get('admin') || [];
             if (existingMessages.length > 0) {
                 chatMessages.innerHTML = '';
                 renderMessages(existingMessages);
             } else {
-                chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load support messages</p></div>';
+                chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load support messages: ' + error.message + '</p></div>';
             }
         }
     }
@@ -1253,6 +1256,21 @@
      */
     async function sendSupportMessage(msg) {
         try {
+            console.log('Sending support message:', msg);
+            console.log('User ID:', config.currentUser.id);
+            console.log('User Name:', config.currentUser.name);
+            
+            const requestData = {
+                user_id: config.currentUser.id,
+                user_name: config.currentUser.name,
+                message: msg.message,
+                message_type: 'user'
+            };
+            
+            console.log('Request data:', requestData);
+            console.log('API URL:', config.apiUrl);
+            console.log('Nonce:', config.nonce);
+            
             // Save to backend
             const response = await fetch(`${config.apiUrl}chat/support`, {
                 method: 'POST',
@@ -1260,17 +1278,19 @@
                     'Content-Type': 'application/json',
                     'X-WP-Nonce': config.nonce
                 },
-                body: JSON.stringify({
-                    user_id: config.currentUser.id,
-                    user_name: config.currentUser.name,
-                    message: msg.message,
-                    message_type: 'user'
-                })
+                body: JSON.stringify(requestData)
             });
             
+            console.log('Support message response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error('Failed to send support message');
+                const errorData = await response.json();
+                console.error('Support message error response:', errorData);
+                throw new Error(`Failed to send support message: ${errorData.message || response.statusText}`);
             }
+            
+            const responseData = await response.json();
+            console.log('Support message response data:', responseData);
             
             // Store message locally
             if (!individualChats.has('admin')) {
@@ -1292,6 +1312,7 @@
                 websocket.send(JSON.stringify({ type: 'support-message', ...data }));
             }
         } catch (error) {
+            console.error('Support message send error:', error);
             throw error;
         }
     }

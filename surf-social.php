@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.63
+Version: 1.0.64
 Author: Thomas Fraher
 */
 
@@ -63,6 +63,14 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
         add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
         add_action('wp_ajax_surf_social_mark_support_read', array($this, 'ajax_mark_support_read'));
+        
+        // Debug AJAX handlers
+        add_action('wp_ajax_surf_social_debug_database', array($this, 'ajax_debug_database'));
+        add_action('wp_ajax_surf_social_debug_config', array($this, 'ajax_debug_config'));
+        add_action('wp_ajax_surf_social_debug_live_logs', array($this, 'ajax_debug_live_logs'));
+        add_action('wp_ajax_surf_social_debug_fix_tables', array($this, 'ajax_debug_fix_tables'));
+        add_action('wp_ajax_surf_social_debug_clear_messages', array($this, 'ajax_debug_clear_messages'));
+        add_action('wp_ajax_surf_social_debug_reset_settings', array($this, 'ajax_debug_reset_settings'));
     }
     
     /**
@@ -641,19 +649,32 @@ class Surf_Social {
         $per_page = 20;
         $offset = ($page - 1) * $per_page;
         
+        // Debug logging
+        error_log("Surf Social Debug - get_support_messages called with user_id: " . $user_id);
+        
         if (empty($user_id)) {
+            error_log("Surf Social Debug - Missing user_id parameter");
             return new WP_Error('missing_params', 'User ID is required', array('status' => 400));
+        }
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+        if (!$table_exists) {
+            error_log("Surf Social Debug - Table $table_name does not exist");
+            return new WP_Error('table_not_found', 'Support messages table not found', array('status' => 500));
         }
         
         $messages = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT * FROM $table_name 
-                WHERE user_id = %d 
+                WHERE user_id = %s 
                 ORDER BY created_at DESC LIMIT %d OFFSET %d",
                 $user_id, $per_page, $offset
             ),
             ARRAY_A
         );
+        
+        error_log("Surf Social Debug - Found " . count($messages) . " messages for user_id: " . $user_id);
         
         return new WP_REST_Response(array(
             'messages' => array_reverse($messages),
@@ -676,7 +697,15 @@ class Surf_Social {
         $admin_id = $request->get_param('admin_id');
         $admin_name = $request->get_param('admin_name');
         
+        // Debug logging
+        error_log("Surf Social Debug - save_support_message called");
+        error_log("Surf Social Debug - user_id: " . $user_id);
+        error_log("Surf Social Debug - user_name: " . $user_name);
+        error_log("Surf Social Debug - message: " . $message);
+        error_log("Surf Social Debug - message_type: " . $message_type);
+        
         if (empty($message) || empty($user_id)) {
+            error_log("Surf Social Debug - Missing required parameters");
             return new WP_Error('invalid_data', 'Message and user ID are required', array('status' => 400));
         }
         
@@ -728,13 +757,15 @@ class Surf_Social {
         
         if ($result) {
             $message_id = $wpdb->insert_id;
+            error_log("Surf Social Debug - Message saved successfully with ID: " . $message_id);
             return new WP_REST_Response(array(
                 'success' => true,
                 'message_id' => $message_id
             ), 201);
         }
         
-        return new WP_Error('save_failed', 'Failed to save message', array('status' => 500));
+        error_log("Surf Social Debug - Failed to save message. Error: " . $wpdb->last_error);
+        return new WP_Error('save_failed', 'Failed to save message: ' . $wpdb->last_error, array('status' => 500));
     }
     
     /**
@@ -1326,6 +1357,162 @@ class Surf_Social {
      */
     public function check_admin_permission($request) {
         return current_user_can('manage_options');
+    }
+    
+    /**
+     * Debug AJAX handler for database check
+     */
+    public function ajax_debug_database() {
+        check_ajax_referer('surf_social_debug', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        $tables = array();
+        $support_messages_count = 0;
+        $guest_users_count = 0;
+        
+        // Check if tables exist
+        $table_names = array(
+            $wpdb->prefix . 'surf_social_messages',
+            $wpdb->prefix . 'surf_social_individual_messages',
+            $wpdb->prefix . 'surf_social_support_messages',
+            $wpdb->prefix . 'surf_social_guests'
+        );
+        
+        foreach ($table_names as $table_name) {
+            $exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+            if ($exists) {
+                $tables[] = str_replace($wpdb->prefix, '', $table_name);
+                
+                if (strpos($table_name, 'support_messages') !== false) {
+                    $support_messages_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+                }
+                if (strpos($table_name, 'guests') !== false) {
+                    $guest_users_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+                }
+            }
+        }
+        
+        wp_send_json_success(array(
+            'tables' => $tables,
+            'support_messages_count' => $support_messages_count,
+            'guest_users_count' => $guest_users_count
+        ));
+    }
+    
+    /**
+     * Debug AJAX handler for configuration check
+     */
+    public function ajax_debug_config() {
+        check_ajax_referer('surf_social_debug', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        wp_send_json_success(array(
+            'pusher_key' => get_option('surf_social_pusher_key', 'Not set'),
+            'pusher_cluster' => get_option('surf_social_pusher_cluster', 'Not set'),
+            'use_pusher' => get_option('surf_social_use_pusher', 'Not set'),
+            'websocket_url' => get_option('surf_social_websocket_url', 'Not set'),
+            'enabled' => get_option('surf_social_enabled', 'Not set')
+        ));
+    }
+    
+    /**
+     * Debug AJAX handler for live logs
+     */
+    public function ajax_debug_live_logs() {
+        check_ajax_referer('surf_social_debug', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        // Get recent error logs
+        $logs = array();
+        $error_log = ini_get('error_log');
+        
+        if ($error_log && file_exists($error_log)) {
+            $lines = file($error_log, FILE_IGNORE_NEW_LINES);
+            $recent_lines = array_slice($lines, -10); // Last 10 lines
+            
+            foreach ($recent_lines as $line) {
+                if (strpos($line, 'surf') !== false || strpos($line, 'Surf') !== false) {
+                    $logs[] = array(
+                        'timestamp' => date('H:i:s'),
+                        'type' => 'info',
+                        'message' => $line
+                    );
+                }
+            }
+        }
+        
+        wp_send_json_success(array('logs' => $logs));
+    }
+    
+    /**
+     * Debug AJAX handler for fixing tables
+     */
+    public function ajax_debug_fix_tables() {
+        check_ajax_referer('surf_social_debug', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        // Recreate tables
+        $this->ensure_database_tables();
+        
+        wp_send_json_success(array(
+            'message' => 'Database tables have been recreated successfully.'
+        ));
+    }
+    
+    /**
+     * Debug AJAX handler for clearing messages
+     */
+    public function ajax_debug_clear_messages() {
+        check_ajax_referer('surf_social_debug', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+        $wpdb->query("TRUNCATE TABLE $table_name");
+        
+        wp_send_json_success(array(
+            'count' => $count
+        ));
+    }
+    
+    /**
+     * Debug AJAX handler for resetting settings
+     */
+    public function ajax_debug_reset_settings() {
+        check_ajax_referer('surf_social_debug', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        // Reset to default values
+        update_option('surf_social_pusher_key', 'c08d09b4013a00d6a626');
+        update_option('surf_social_pusher_secret', '15a73a9dbb0a4884f6fa');
+        update_option('surf_social_pusher_cluster', 'us3');
+        update_option('surf_social_use_pusher', '1');
+        update_option('surf_social_enabled', '1');
+        update_option('surf_social_websocket_url', '');
+        
+        wp_send_json_success();
     }
     
     /**

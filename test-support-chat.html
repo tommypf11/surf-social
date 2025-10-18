@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Surf Social Support Chat Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f1f1f1; }
+        .test-container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 6px; }
+        .test-button { background: #007cba; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .test-button:hover { background: #005a87; }
+        .test-results { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-family: monospace; white-space: pre-wrap; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Surf Social Support Chat Test</h1>
+        <p>This page tests the support chat functionality step by step.</p>
+        
+        <div class="test-section">
+            <h3>Step 1: Test REST API Endpoints</h3>
+            <button class="test-button" onclick="testEndpoints()">Test Endpoints</button>
+            <div id="endpoint-results" class="test-results" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 2: Test Message Sending</h3>
+            <button class="test-button" onclick="testSendMessage()">Send Test Message</button>
+            <div id="send-results" class="test-results" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 3: Test Message Retrieval</h3>
+            <button class="test-button" onclick="testGetMessages()">Get Messages</button>
+            <div id="get-results" class="test-results" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 4: Test Admin Panel</h3>
+            <button class="test-button" onclick="testAdminPanel()">Test Admin Panel</button>
+            <div id="admin-results" class="test-results" style="display: none;"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 5: Complete Flow Test</h3>
+            <button class="test-button" onclick="testCompleteFlow()">Run Complete Test</button>
+            <div id="complete-results" class="test-results" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+    const testUserId = 'test_user_' + Date.now();
+    const testUserName = 'Test User';
+    const testMessage = 'Test message from ' + new Date().toLocaleTimeString();
+    
+    // Get WordPress configuration from the page
+    const config = window.surfSocial || {
+        apiUrl: '/wp-json/surf-social/v1/',
+        nonce: 'test_nonce'
+    };
+    
+    function log(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        return `[${timestamp}] ${message}\n`;
+    }
+    
+    function showResults(containerId, content) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = content;
+        container.style.display = 'block';
+    }
+    
+    async function testEndpoints() {
+        let results = '';
+        results += log('Testing REST API endpoints...', 'info');
+        
+        const endpoints = [
+            { name: 'Support Messages GET', url: config.apiUrl + 'chat/support' },
+            { name: 'Support Messages POST', url: config.apiUrl + 'chat/support', method: 'POST' },
+            { name: 'Support Tickets GET', url: config.apiUrl + 'chat/support/admin' }
+        ];
+        
+        for (const endpoint of endpoints) {
+            try {
+                const options = {
+                    method: endpoint.method || 'GET',
+                    headers: {
+                        'X-WP-Nonce': config.nonce
+                    }
+                };
+                
+                if (endpoint.method === 'POST') {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify({
+                        user_id: testUserId,
+                        user_name: testUserName,
+                        message: testMessage,
+                        message_type: 'user'
+                    });
+                }
+                
+                const response = await fetch(endpoint.url, options);
+                
+                if (response.ok) {
+                    results += log(`✅ ${endpoint.name}: OK (${response.status})`, 'success');
+                } else {
+                    const errorData = await response.json();
+                    results += log(`❌ ${endpoint.name}: ${response.status} - ${errorData.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                results += log(`❌ ${endpoint.name}: Network error - ${error.message}`, 'error');
+            }
+        }
+        
+        showResults('endpoint-results', results);
+    }
+    
+    async function testSendMessage() {
+        let results = '';
+        results += log('Testing message sending...', 'info');
+        
+        try {
+            const response = await fetch(config.apiUrl + 'chat/support', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    user_id: testUserId,
+                    user_name: testUserName,
+                    message: testMessage,
+                    message_type: 'user'
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                results += log(`✅ Message sent successfully`, 'success');
+                results += log(`Response: ${JSON.stringify(data)}`, 'info');
+            } else {
+                const errorData = await response.json();
+                results += log(`❌ Failed to send message: ${errorData.message || response.statusText}`, 'error');
+            }
+        } catch (error) {
+            results += log(`❌ Send message error: ${error.message}`, 'error');
+        }
+        
+        showResults('send-results', results);
+    }
+    
+    async function testGetMessages() {
+        let results = '';
+        results += log('Testing message retrieval...', 'info');
+        
+        try {
+            const response = await fetch(`${config.apiUrl}chat/support?user_id=${testUserId}`, {
+                headers: {
+                    'X-WP-Nonce': config.nonce
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                results += log(`✅ Messages retrieved successfully`, 'success');
+                results += log(`Found ${data.messages ? data.messages.length : 0} messages`, 'info');
+                results += log(`Response: ${JSON.stringify(data, null, 2)}`, 'info');
+            } else {
+                const errorData = await response.json();
+                results += log(`❌ Failed to get messages: ${errorData.message || response.statusText}`, 'error');
+            }
+        } catch (error) {
+            results += log(`❌ Get messages error: ${error.message}`, 'error');
+        }
+        
+        showResults('get-results', results);
+    }
+    
+    async function testAdminPanel() {
+        let results = '';
+        results += log('Testing admin panel...', 'info');
+        
+        try {
+            const response = await fetch('/wp-admin/admin-ajax.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=surf_social_get_support_tickets&nonce=${config.nonce}`
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                results += log(`✅ Admin panel accessible`, 'success');
+                results += log(`Found ${data.data ? data.data.tickets.length : 0} tickets`, 'info');
+                results += log(`Response: ${JSON.stringify(data, null, 2)}`, 'info');
+            } else {
+                const errorData = await response.json();
+                results += log(`❌ Admin panel error: ${errorData.message || response.statusText}`, 'error');
+            }
+        } catch (error) {
+            results += log(`❌ Admin panel error: ${error.message}`, 'error');
+        }
+        
+        showResults('admin-results', results);
+    }
+    
+    async function testCompleteFlow() {
+        let results = '';
+        results += log('Running complete flow test...', 'info');
+        
+        // Step 1: Send message
+        results += log('Step 1: Sending message...', 'info');
+        try {
+            const sendResponse = await fetch(config.apiUrl + 'chat/support', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    user_id: testUserId,
+                    user_name: testUserName,
+                    message: testMessage,
+                    message_type: 'user'
+                })
+            });
+            
+            if (sendResponse.ok) {
+                results += log('✅ Message sent successfully', 'success');
+            } else {
+                const errorData = await sendResponse.json();
+                results += log(`❌ Failed to send message: ${errorData.message}`, 'error');
+                showResults('complete-results', results);
+                return;
+            }
+        } catch (error) {
+            results += log(`❌ Send error: ${error.message}`, 'error');
+            showResults('complete-results', results);
+            return;
+        }
+        
+        // Step 2: Wait a moment
+        results += log('Step 2: Waiting for database...', 'info');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Step 3: Get messages
+        results += log('Step 3: Retrieving messages...', 'info');
+        try {
+            const getResponse = await fetch(`${config.apiUrl}chat/support?user_id=${testUserId}`, {
+                headers: {
+                    'X-WP-Nonce': config.nonce
+                }
+            });
+            
+            if (getResponse.ok) {
+                const data = await getResponse.json();
+                if (data.messages && data.messages.length > 0) {
+                    results += log('✅ Messages retrieved successfully', 'success');
+                    results += log(`Found ${data.messages.length} messages`, 'info');
+                } else {
+                    results += log('❌ No messages found', 'error');
+                }
+            } else {
+                const errorData = await getResponse.json();
+                results += log(`❌ Failed to get messages: ${errorData.message}`, 'error');
+            }
+        } catch (error) {
+            results += log(`❌ Get error: ${error.message}`, 'error');
+        }
+        
+        // Step 4: Check admin panel
+        results += log('Step 4: Checking admin panel...', 'info');
+        try {
+            const adminResponse = await fetch('/wp-admin/admin-ajax.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=surf_social_get_support_tickets&nonce=${config.nonce}`
+            });
+            
+            if (adminResponse.ok) {
+                const data = await adminResponse.json();
+                const foundTicket = data.data && data.data.tickets.find(ticket => ticket.user_id === testUserId);
+                if (foundTicket) {
+                    results += log('✅ Message found in admin panel', 'success');
+                } else {
+                    results += log('❌ Message not found in admin panel', 'error');
+                }
+            } else {
+                results += log('❌ Admin panel error', 'error');
+            }
+        } catch (error) {
+            results += log(`❌ Admin panel error: ${error.message}`, 'error');
+        }
+        
+        results += log('Complete flow test finished', 'info');
+        showResults('complete-results', results);
+    }
+    </script>
+</body>
+</html>
