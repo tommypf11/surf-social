@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.92
+Version: 1.0.93
 Author: Thomas Fraher
 */
 
@@ -376,6 +376,13 @@ class Surf_Social {
             'methods' => 'POST',
             'callback' => array($this, 'send_admin_support_reply'),
             'permission_callback' => array($this, 'check_admin_permission')
+        ));
+        
+        // Debug endpoint for support messages
+        register_rest_route('surf-social/v1', '/debug/support', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'debug_support_messages'),
+            'permission_callback' => '__return_true'
         ));
         
         register_rest_route('surf-social/v1', '/chat/support/admin/mark-read', array(
@@ -795,7 +802,15 @@ class Surf_Social {
         $parent_message_id = $request->get_param('parent_message_id');
         $thread_id = $request->get_param('thread_id');
         
+        // Debug logging
+        error_log('Surf Social Debug - save_support_message called');
+        error_log('Surf Social Debug - user_id: ' . $user_id);
+        error_log('Surf Social Debug - user_name: ' . $user_name);
+        error_log('Surf Social Debug - message: ' . $message);
+        error_log('Surf Social Debug - message_type: ' . $message_type);
+        
         if (empty($message) || empty($user_id)) {
+            error_log('Surf Social Debug - Missing required parameters');
             return new WP_Error('invalid_data', 'Message and user ID are required', array('status' => 400));
         }
         
@@ -807,6 +822,9 @@ class Surf_Social {
             ));
             if ($existing_name) {
                 $user_name = $existing_name;
+            } else {
+                // Fallback to a default name if no existing name found
+                $user_name = 'User ' . $user_id;
             }
         }
         
@@ -846,10 +864,19 @@ class Surf_Social {
         
         $format = array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s');
         
+        error_log('Surf Social Debug - Insert data: ' . print_r($insert_data, true));
+        error_log('Surf Social Debug - Format: ' . print_r($format, true));
+        
         $result = $wpdb->insert($table_name, $insert_data, $format);
+        
+        error_log('Surf Social Debug - Insert result: ' . ($result ? 'success' : 'failed'));
+        if (!$result) {
+            error_log('Surf Social Debug - Database error: ' . $wpdb->last_error);
+        }
         
         if ($result) {
             $message_id = $wpdb->insert_id;
+            error_log('Surf Social Debug - Message saved with ID: ' . $message_id);
             
             // Broadcast support ticket update to admin
             $this->broadcast_support_ticket_update($user_id, 'new_message');
@@ -861,6 +888,7 @@ class Surf_Social {
             ), 201);
         }
         
+        error_log('Surf Social Debug - Failed to save message. Error: ' . $wpdb->last_error);
         return new WP_Error('save_failed', 'Failed to save message: ' . $wpdb->last_error, array('status' => 500));
     }
     
@@ -1336,7 +1364,7 @@ class Surf_Social {
     }
     
     /**
-     * Broadcast via Pusher
+     * Broadcast via Pusher with optimized performance
      */
     private function broadcast_via_pusher($event, $data, $channels = array()) {
         // Get Pusher configuration
@@ -1356,6 +1384,7 @@ class Surf_Social {
         $success = true;
         $pusher_url = "https://api.pusherapp.com/apps/$pusher_key/events";
         
+        // Use async request for better performance
         foreach ($channels as $channel) {
             $body = array(
                 'name' => $event,
@@ -1363,24 +1392,22 @@ class Surf_Social {
                 'channel' => $channel
             );
             
-            $response = wp_remote_post($pusher_url, array(
+            // Use non-blocking request for better performance
+            wp_remote_post($pusher_url, array(
                 'body' => $body,
                 'headers' => array(
                     'Content-Type' => 'application/x-www-form-urlencoded'
                 ),
-                'timeout' => 10
+                'timeout' => 5, // Reduced timeout for faster failure detection
+                'blocking' => false // Non-blocking request
             ));
-            
-            if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
-                $success = false;
-            }
         }
         
-        return $success;
+        return true; // Assume success for non-blocking requests
     }
     
     /**
-     * Broadcast via WebSocket
+     * Broadcast via WebSocket with optimized performance
      */
     private function broadcast_via_websocket($event, $data, $channels = array()) {
         $websocket_url = get_option('surf_social_websocket_url');
@@ -1394,19 +1421,17 @@ class Surf_Social {
             'channels' => $channels
         ));
         
-        $response = wp_remote_post($websocket_url, array(
+        // Use non-blocking request for better performance
+        wp_remote_post($websocket_url, array(
             'body' => $payload,
             'headers' => array(
                 'Content-Type' => 'application/json'
             ),
-            'timeout' => 10
+            'timeout' => 5, // Reduced timeout
+            'blocking' => false // Non-blocking request
         ));
         
-        if (is_wp_error($response)) {
-            return false;
-        }
-        
-        return wp_remote_retrieve_response_code($response) === 200;
+        return true; // Assume success for non-blocking requests
     }
     
     /**
@@ -2131,6 +2156,9 @@ class Surf_Social {
         // Add threading columns to existing support messages table
         $this->add_threading_columns();
         
+        // Update support messages table to use varchar for user IDs if needed
+        $this->update_support_messages_table();
+        
         // Create optimized indexes
         $this->create_database_indexes();
         
@@ -2239,6 +2267,27 @@ class Surf_Social {
     }
     
     /**
+     * Update support messages table to use varchar for user IDs
+     */
+    private function update_support_messages_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+        if (!$table_exists) {
+            return;
+        }
+        
+        // Check if user_id is already varchar
+        $column_info = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table_name LIKE %s", 'user_id'));
+        if (!empty($column_info) && strpos($column_info[0]->Type, 'varchar') === false) {
+            // Update user_id column to varchar
+            $wpdb->query("ALTER TABLE $table_name MODIFY COLUMN user_id varchar(100) NOT NULL");
+        }
+    }
+    
+    /**
      * Create optimized database indexes
      */
     private function create_database_indexes() {
@@ -2279,6 +2328,41 @@ class Surf_Social {
         if (!$index_exists) {
             $wpdb->query("ALTER TABLE $table ADD INDEX $index_name ($columns)");
         }
+    }
+    
+    /**
+     * Debug support messages endpoint
+     */
+    public function debug_support_messages($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+        
+        $debug_info = array(
+            'table_exists' => (bool) $table_exists,
+            'table_name' => $table_name,
+            'user_id' => get_current_user_id(),
+            'user_name' => wp_get_current_user()->display_name,
+            'is_guest' => !is_user_logged_in(),
+            'current_time' => current_time('mysql')
+        );
+        
+        if ($table_exists) {
+            // Get table structure
+            $columns = $wpdb->get_results("DESCRIBE $table_name");
+            $debug_info['table_structure'] = $columns;
+            
+            // Get recent messages
+            $recent_messages = $wpdb->get_results(
+                "SELECT * FROM $table_name ORDER BY created_at DESC LIMIT 5",
+                ARRAY_A
+            );
+            $debug_info['recent_messages'] = $recent_messages;
+        }
+        
+        return new WP_REST_Response($debug_info, 200);
     }
     
     /**

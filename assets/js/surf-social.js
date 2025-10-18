@@ -1487,7 +1487,19 @@
         };
         
         try {
-            // Handle different chat types
+            // Clear input immediately for better UX
+            chatInput.value = '';
+            isFirstMessage = false;
+            
+            // Add message to current view immediately (optimistic UI)
+            const messageEl = createMessageElement(msg);
+            chatMessages.appendChild(messageEl);
+            scrollToBottom();
+            
+            // Broadcast immediately for instant real-time updates
+            broadcastMessageImmediately(msg);
+            
+            // Handle different chat types (save to database in background)
             if (currentTab === 'web') {
                 await sendWebChatMessage(msg);
             } else if (currentTab === 'friend' && currentChatUser) {
@@ -1506,22 +1518,76 @@
                 return;
             }
             
-            chatInput.value = '';
-            isFirstMessage = false;
-            
-            // Add message to current view immediately
-            const messageEl = createMessageElement(msg);
-            chatMessages.appendChild(messageEl);
-            scrollToBottom();
-            
         } catch (error) {
             console.error('Failed to send message:', error);
-            alert('Failed to send message. Please try again.');
+            
+            // Show more specific error message
+            let errorMessage = 'Failed to send message. Please try again.';
+            if (error.message.includes('User not properly configured')) {
+                errorMessage = 'Please refresh the page and try again.';
+            } else if (error.message.includes('Failed to send support message')) {
+                errorMessage = error.message.replace('Failed to send support message: ', '');
+            }
+            
+            alert(errorMessage);
         }
         
         chatInput.disabled = false;
         chatSend.disabled = false;
         chatInput.focus();
+    }
+    
+    /**
+     * Broadcast message immediately for instant real-time updates
+     */
+    function broadcastMessageImmediately(msg) {
+        // Generate dedupe ID for this message
+        const dedupeId = `immediate_${config.currentUser.id}_${msg.message}_${msg.created_at}`;
+        
+        const data = {
+            user: config.currentUser,
+            message: msg.message,
+            created_at: msg.created_at,
+            user_color: msg.user_color,
+            dedupe_id: dedupeId
+        };
+        
+        // Determine the event type based on current tab
+        let eventType = 'client-new-message';
+        let websocketType = 'new-message';
+        
+        if (currentTab === 'friend' && currentChatUser) {
+            eventType = 'client-individual-message';
+            websocketType = 'individual-message';
+            data.recipient_id = currentChatUser.id;
+            data.recipient_name = currentChatUser.name;
+        } else if (currentTab === 'support') {
+            eventType = 'client-support-message';
+            websocketType = 'support-message';
+        }
+        
+        // Broadcast via Pusher
+        if (pusher && channel) {
+            try {
+                channel.trigger(eventType, data);
+                console.log('Message broadcasted via Pusher:', eventType);
+            } catch (error) {
+                console.error('Pusher broadcast error:', error);
+            }
+        }
+        
+        // Broadcast via WebSocket
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            try {
+                websocket.send(JSON.stringify({ 
+                    type: websocketType, 
+                    ...data 
+                }));
+                console.log('Message broadcasted via WebSocket:', websocketType);
+            } catch (error) {
+                console.error('WebSocket broadcast error:', error);
+            }
+        }
     }
     
     /**
@@ -1546,18 +1612,7 @@
             throw new Error('Failed to send web chat message');
         }
         
-        // Broadcast via real-time
-        const data = {
-            user: config.currentUser,
-            message: msg.message,
-            created_at: msg.created_at
-        };
-        
-        if (pusher) {
-            channel.trigger('client-new-message', data);
-        } else if (websocket && websocket.readyState === WebSocket.OPEN) {
-            websocket.send(JSON.stringify({ type: 'new-message', ...data }));
-        }
+        // Message already broadcasted immediately, no need to broadcast again
     }
     
     /**
@@ -1617,20 +1672,7 @@
             
             individualChats.get(targetUser.id).push(messageForStorage);
             
-            // Broadcast to specific user
-            const data = {
-                user: config.currentUser,
-                targetUser: targetUser,
-                message: msg.message,
-                created_at: msg.created_at,
-                type: 'individual-chat'
-            };
-            
-            if (pusher) {
-                channel.trigger('client-individual-message', data);
-            } else if (websocket && websocket.readyState === WebSocket.OPEN) {
-                websocket.send(JSON.stringify({ type: 'individual-message', ...data }));
-            }
+            // Message already broadcasted immediately, no need to broadcast again
         } catch (error) {
             throw error;
         }
@@ -1644,10 +1686,16 @@
             console.log('Sending support message:', msg);
             console.log('User ID:', config.currentUser.id);
             console.log('User Name:', config.currentUser.name);
+            console.log('Config object:', config);
+            
+            // Ensure we have valid user data
+            if (!config.currentUser || !config.currentUser.id) {
+                throw new Error('User not properly configured. Please refresh the page and try again.');
+            }
             
             const requestData = {
                 user_id: config.currentUser.id,
-                user_name: config.currentUser.name,
+                user_name: config.currentUser.name || 'User',
                 message: msg.message,
                 message_type: 'user'
             };
@@ -1669,9 +1717,15 @@
             console.log('Support message response status:', response.status);
             
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Support message error response:', errorData);
-                throw new Error(`Failed to send support message: ${errorData.message || response.statusText}`);
+                let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    console.error('Support message error response:', errorData);
+                    errorMessage = errorData.message || errorData.error || errorMessage;
+                } catch (e) {
+                    console.error('Could not parse error response:', e);
+                }
+                throw new Error(`Failed to send support message: ${errorMessage}`);
             }
             
             const responseData = await response.json();
@@ -1683,19 +1737,7 @@
             }
             individualChats.get('admin').push(msg);
             
-            // Broadcast to admin
-            const data = {
-                user: config.currentUser,
-                message: msg.message,
-                created_at: msg.created_at,
-                type: 'support-chat'
-            };
-            
-            if (pusher) {
-                channel.trigger('client-support-message', data);
-            } else if (websocket && websocket.readyState === WebSocket.OPEN) {
-                websocket.send(JSON.stringify({ type: 'support-message', ...data }));
-            }
+            // Message already broadcasted immediately, no need to broadcast again
         } catch (error) {
             console.error('Support message send error:', error);
             throw error;
@@ -1792,19 +1834,24 @@
             return;
         }
         
+        // Create a simple dedupe ID if not provided
+        const dedupeId = data.dedupe_id || `msg_${data.user.id}_${data.message}_${data.created_at}`;
+        if (messageCache.has(dedupeId)) {
+            console.log('Duplicate message ignored (generated ID):', dedupeId);
+            return;
+        }
+        
         const msg = {
             user_id: data.user.id,
             user_name: data.user.name,
             message: data.message,
             created_at: data.created_at,
             user_color: data.user.color,
-            dedupe_id: data.dedupe_id
+            dedupe_id: dedupeId
         };
         
         // Cache message to prevent duplicates
-        if (data.dedupe_id) {
-            messageCache.set(data.dedupe_id, true);
-        }
+        messageCache.set(dedupeId, true);
         
         // Handle different message types
         if (data.type === 'individual-chat') {
