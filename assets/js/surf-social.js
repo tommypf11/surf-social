@@ -551,7 +551,18 @@
      */
     function handleUserJoined(data) {
         if (data.user.id === config.currentUser.id) return;
-        // User joined - cursor will appear when they start moving
+        
+        // Add user to current users if not already present
+        if (!currentUsers.has(data.user.id)) {
+            const cursor = createCursor(data.user);
+            currentUsers.set(data.user.id, cursor);
+            updateAvatarDock();
+            
+            // Update friend chat list if it's visible
+            if (currentTab === 'friend' && !currentChatUser) {
+                showFriendChatList();
+            }
+        }
     }
     
     /**
@@ -560,6 +571,11 @@
     function handleUserLeft(data) {
         if (data.user.id === config.currentUser.id) return;
         handleCursorLeave(data);
+        
+        // Update friend chat list if it's visible
+        if (currentTab === 'friend' && !currentChatUser) {
+            showFriendChatList();
+        }
     }
     
     /**
@@ -704,8 +720,13 @@
         // Update title if it exists
         const title = document.querySelector('.surf-chat-title');
         if (title) {
-            title.textContent = tabName === 'web' ? 'Web Chat' : 
-                              tabName === 'friend' ? 'Friend Chat' : 'Support';
+            if (tabName === 'web') {
+                title.textContent = 'Web Chat';
+            } else if (tabName === 'friend') {
+                title.textContent = 'Friend Chat';
+            } else if (tabName === 'support') {
+                title.textContent = 'Support';
+            }
         }
         
         // Clear current chat user when switching tabs
@@ -725,6 +746,20 @@
             hasMoreMessages = true;
             loadInitialMessages();
         }
+        
+        // Clear chat input when switching tabs
+        if (chatInput) {
+            chatInput.value = '';
+            
+            // Update placeholder based on tab
+            if (tabName === 'friend') {
+                chatInput.placeholder = 'Select a friend to start chatting...';
+            } else if (tabName === 'support') {
+                chatInput.placeholder = 'Type your support message...';
+            } else {
+                chatInput.placeholder = 'Type a message...';
+            }
+        }
     }
     
     /**
@@ -733,8 +768,14 @@
     function showFriendChatList() {
         chatMessages.innerHTML = '';
         
+        // Update title
+        const title = document.querySelector('.surf-chat-title');
+        if (title) {
+            title.textContent = 'Friend Chat';
+        }
+        
         if (currentUsers.size === 0) {
-            showEmptyState('No other users online');
+            showEmptyState('No other users online. Share this page with friends to start chatting!');
             return;
         }
         
@@ -815,24 +856,32 @@
     function openIndividualChat(user) {
         currentChatUser = user;
         const title = document.querySelector('.surf-chat-title');
-        title.innerHTML = `
-            <button class="surf-back-button" id="surf-back-button" aria-label="Back to friends">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
-            Chat with ${user.name}
-        `;
+        if (title) {
+            title.innerHTML = `
+                <button class="surf-back-button" id="surf-back-button" aria-label="Back to friends">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                Chat with ${user.name}
+            `;
+        }
         
         // Add back button event listener
         const backButton = document.getElementById('surf-back-button');
         if (backButton) {
-            backButton.addEventListener('click', (e) => {
+            // Remove any existing event listeners
+            backButton.replaceWith(backButton.cloneNode(true));
+            const newBackButton = document.getElementById('surf-back-button');
+            newBackButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 showFriendChatList();
                 currentChatUser = null;
-                const title = document.querySelector('.surf-chat-title');
-                title.textContent = 'Friend Chat';
+                
+                // Update input placeholder
+                if (chatInput) {
+                    chatInput.placeholder = 'Select a friend to start chatting...';
+                }
             });
         }
         
@@ -840,6 +889,11 @@
         chatTabs.forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === 'friend');
         });
+        
+        // Update input placeholder
+        if (chatInput) {
+            chatInput.placeholder = `Message ${user.name}...`;
+        }
         
         // Load messages for this user
         loadIndividualChatMessages(user);
@@ -868,9 +922,12 @@
                 
                 renderMessages(data.messages);
             } else {
+                // Initialize empty chat for this user
+                individualChats.set(user.id, []);
                 showEmptyState(`Start a conversation with ${user.name}`);
             }
         } catch (error) {
+            console.error('Failed to load individual messages:', error);
             chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load messages</p></div>';
         }
     }
@@ -883,7 +940,9 @@
         currentChatUser = adminUser;
         
         const title = document.querySelector('.surf-chat-title');
-        title.textContent = 'Support Chat';
+        if (title) {
+            title.textContent = 'Support Chat';
+        }
         
         // Load support messages
         loadSupportMessages();
@@ -1145,6 +1204,10 @@
                 await sendIndividualChatMessage(msg, currentChatUser);
             } else if (currentTab === 'support') {
                 await sendSupportMessage(msg);
+            } else {
+                // If in friend tab but no user selected, don't send message
+                console.warn('No user selected for individual chat');
+                return;
             }
             
             chatInput.value = '';
@@ -1230,7 +1293,18 @@
             if (!individualChats.has(targetUser.id)) {
                 individualChats.set(targetUser.id, []);
             }
-            individualChats.get(targetUser.id).push(msg);
+            
+            // Create proper message object for storage
+            const messageForStorage = {
+                id: Date.now(), // Temporary ID
+                user_id: config.currentUser.id,
+                user_name: config.currentUser.name,
+                message: msg.message,
+                created_at: msg.created_at,
+                user_color: config.currentUser.color
+            };
+            
+            individualChats.get(targetUser.id).push(messageForStorage);
             
             // Broadcast to specific user
             const data = {
@@ -1386,6 +1460,7 @@
      */
     function handleIndividualMessage(data) {
         const msg = {
+            id: Date.now(), // Temporary ID
             user_id: data.user.id,
             user_name: data.user.name,
             message: data.message,
@@ -1409,6 +1484,12 @@
         // Update friend chat list if it's visible
         if (currentTab === 'friend' && !currentChatUser) {
             showFriendChatList();
+        }
+        
+        // Update unread count if chat is closed
+        if (!chatDrawer.classList.contains('open')) {
+            unreadCount++;
+            updateUnreadBadge();
         }
     }
     

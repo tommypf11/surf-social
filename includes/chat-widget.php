@@ -17,6 +17,8 @@ if (!defined('ABSPATH')) {
             <button class="surf-chat-tab" data-tab="support">Support</button>
         </div>
         
+        <div class="surf-chat-title">Web Chat</div>
+        
         <div class="surf-chat-messages" id="surf-chat-messages">
             <!-- Messages will be loaded here -->
         </div>

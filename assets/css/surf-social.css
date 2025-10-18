@@ -127,6 +127,37 @@
     z-index: 1000000;
 }
 
+/* Chat Title */
+.surf-chat-title {
+    padding: 12px 16px;
+    background: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--surf-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.surf-back-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    color: var(--surf-text-muted);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.surf-back-button:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--surf-primary);
+}
+
 #surf-social-widget .surf-chat-tab {
     flex: 1;
     padding: 11px 12px;
