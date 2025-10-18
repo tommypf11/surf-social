@@ -141,21 +141,97 @@
 }
 
 .surf-back-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    color: var(--surf-text-muted);
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 4px !important;
+    border-radius: 4px !important;
+    color: var(--surf-text-muted) !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    margin: 0 !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    width: auto !important;
+    height: auto !important;
 }
 
 .surf-back-button:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--surf-primary);
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: var(--surf-primary) !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.surf-back-button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+
+.surf-back-button:active {
+    background: rgba(0, 0, 0, 0.1) !important;
+    transform: none !important;
+}
+
+.surf-back-button svg {
+    width: 16px !important;
+    height: 16px !important;
+    fill: currentColor !important;
+    stroke: currentColor !important;
+}
+
+/* Additional specificity to override WordPress theme styles */
+#surf-social-widget .surf-chat-title .surf-back-button {
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 4px !important;
+    border-radius: 4px !important;
+    color: var(--surf-text-muted) !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    margin: 0 !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+#surf-social-widget .surf-chat-title .surf-back-button:hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: var(--surf-primary) !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+#surf-social-widget .surf-chat-title .surf-back-button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+
+#surf-social-widget .surf-chat-title .surf-back-button:active {
+    background: rgba(0, 0, 0, 0.1) !important;
+    transform: none !important;
 }
 
 #surf-social-widget .surf-chat-tab {

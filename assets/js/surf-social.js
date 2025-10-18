@@ -195,7 +195,9 @@
             if (chatDrawer.classList.contains('open') && 
                 !chatDrawer.contains(e.target) && 
                 !chatToggle.contains(e.target) &&
-                !avatarDock.contains(e.target)) {
+                !avatarDock.contains(e.target) &&
+                !e.target.closest('.surf-friend-user') &&
+                !e.target.closest('.surf-back-button')) {
                 toggleChat();
             }
         });
@@ -843,7 +845,9 @@
         userEl.appendChild(time);
         
         // Add click handler for individual chat
-        userEl.addEventListener('click', () => {
+        userEl.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             openIndividualChat(user);
         });
         
@@ -855,6 +859,12 @@
      */
     function openIndividualChat(user) {
         currentChatUser = user;
+        
+        // Ensure chat drawer is open
+        if (!chatDrawer.classList.contains('open')) {
+            chatDrawer.classList.add('open');
+        }
+        
         const title = document.querySelector('.surf-chat-title');
         if (title) {
             title.innerHTML = `
