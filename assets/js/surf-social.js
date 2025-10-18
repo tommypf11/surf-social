@@ -1878,7 +1878,7 @@
         individualChats.get('admin').push(msg);
         
         // If we're currently viewing a specific support conversation, show the message
-        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin' && currentChatUser.id !== null) {
+        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin' && currentChatUser.id !== null && currentChatUser.id !== undefined) {
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
@@ -1916,7 +1916,7 @@
         individualChats.get('admin').push(msg);
         
         // If we're currently viewing a specific support conversation, show the message
-        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin' && currentChatUser.id !== null) {
+        if (currentTab === 'support' && currentChatUser && currentChatUser.id !== 'admin' && currentChatUser.id !== null && currentChatUser.id !== undefined) {
             const messageEl = createMessageElement(msg);
             chatMessages.appendChild(messageEl);
             scrollToBottom();
@@ -2498,6 +2498,12 @@
         let html = '<div class="surf-admin-tickets-container">';
         
         tickets.forEach(ticket => {
+            // Skip tickets with invalid user names
+            if (!ticket.user_name || ticket.user_name.trim() === '') {
+                console.log('Skipping ticket with invalid user_name:', ticket);
+                return;
+            }
+            
             const lastMessageTime = new Date(ticket.last_message_time);
             const timeAgo = formatTimeAgo(ticket.last_message_time);
             const isUnread = !ticket.is_read_by_admin;
@@ -2508,7 +2514,7 @@
                 <div class="surf-admin-ticket-item ${isUnread ? 'unread' : ''}" data-user-id="${ticket.user_id}">
                     <div class="surf-admin-ticket-header">
                         <div class="surf-admin-ticket-user">
-                            <strong>${ticket.user_name || 'Unknown User'}</strong>
+                            <strong>${ticket.user_name}</strong>
                             ${isUnread ? '<span class="surf-unread-indicator">●</span>' : ''}
                         </div>
                         <div class="surf-admin-ticket-meta">
