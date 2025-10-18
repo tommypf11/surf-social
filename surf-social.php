@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.65
+Version: 1.0.66
 Author: Thomas Fraher
 */
 
@@ -781,8 +781,16 @@ class Surf_Social {
                 user_name,
                 MAX(created_at) as last_message_time,
                 COUNT(*) as message_count,
-                status
-            FROM $table_name 
+                status,
+                CASE 
+                    WHEN MAX(admin_id) IS NOT NULL THEN 1 
+                    ELSE 0 
+                END as is_read_by_admin,
+                (SELECT message FROM $table_name t2 
+                 WHERE t2.user_id = t1.user_id 
+                 ORDER BY t2.created_at DESC 
+                 LIMIT 1) as last_message
+            FROM $table_name t1
             GROUP BY user_id, user_name, status
             ORDER BY last_message_time DESC",
             ARRAY_A
@@ -1081,6 +1089,20 @@ class Surf_Social {
         global $wpdb;
         $table_name = $wpdb->prefix . 'surf_social_support_messages';
         
+        // Debug logging
+        error_log("Surf Social Debug - ajax_get_support_tickets called");
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+        if (!$table_exists) {
+            error_log("Surf Social Debug - Table $table_name does not exist");
+            wp_send_json_error('Support messages table not found');
+        }
+        
+        // Get total count first
+        $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+        error_log("Surf Social Debug - Total messages in table: $total_count");
+        
         $tickets = $wpdb->get_results(
             "SELECT 
                 user_id,
@@ -1089,7 +1111,7 @@ class Surf_Social {
                 COUNT(*) as message_count,
                 status,
                 CASE 
-                    WHEN COUNT(CASE WHEN admin_id IS NOT NULL THEN 1 END) > 0 THEN 1 
+                    WHEN MAX(admin_id) IS NOT NULL THEN 1 
                     ELSE 0 
                 END as is_read_by_admin,
                 (SELECT message FROM $table_name t2 
@@ -1101,6 +1123,11 @@ class Surf_Social {
             ORDER BY last_message_time DESC",
             ARRAY_A
         );
+        
+        error_log("Surf Social Debug - Found " . count($tickets) . " tickets");
+        if (count($tickets) > 0) {
+            error_log("Surf Social Debug - First ticket: " . print_r($tickets[0], true));
+        }
         
         wp_send_json_success(array('tickets' => $tickets));
     }
@@ -1166,7 +1193,15 @@ class Surf_Social {
         $admin_id = get_current_user_id();
         $admin_name = wp_get_current_user()->display_name ?: wp_get_current_user()->user_login;
         
+        // Debug logging
+        error_log("Surf Social Debug - ajax_send_admin_reply called");
+        error_log("Surf Social Debug - user_id: $user_id");
+        error_log("Surf Social Debug - message: $message");
+        error_log("Surf Social Debug - admin_id: $admin_id");
+        error_log("Surf Social Debug - admin_name: $admin_name");
+        
         if (!$user_id || !$message) {
+            error_log("Surf Social Debug - Missing required parameters");
             wp_send_json_error('User ID and message are required');
         }
         
@@ -1186,18 +1221,23 @@ class Surf_Social {
         );
         
         if ($result) {
+            error_log("Surf Social Debug - Admin reply saved successfully with ID: " . $wpdb->insert_id);
+            
             // Get the user name from existing messages
             $user_name = $wpdb->get_var($wpdb->prepare(
                 "SELECT user_name FROM $table_name WHERE user_id = %s LIMIT 1",
                 $user_id
             ));
             
+            error_log("Surf Social Debug - User name: $user_name");
+            
             // Broadcast the admin reply to the frontend
             $this->broadcast_admin_reply($user_id, $user_name, $message, $admin_name);
             
             wp_send_json_success('Reply sent successfully');
         } else {
-            wp_send_json_error('Failed to send reply');
+            error_log("Surf Social Debug - Failed to save admin reply. Error: " . $wpdb->last_error);
+            wp_send_json_error('Failed to send reply: ' . $wpdb->last_error);
         }
     }
     
@@ -1513,6 +1553,74 @@ class Surf_Social {
         update_option('surf_social_websocket_url', '');
         
         wp_send_json_success();
+    }
+    
+    /**
+     * Test function to verify support chat functionality
+     */
+    public function test_support_chat() {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        $test_user_id = 'test_' . time();
+        $test_message = 'Test message from admin panel at ' . current_time('mysql');
+        
+        // Insert a test message
+        $result = $wpdb->insert(
+            $table_name,
+            array(
+                'user_id' => $test_user_id,
+                'user_name' => 'Test User',
+                'admin_id' => get_current_user_id(),
+                'admin_name' => wp_get_current_user()->display_name,
+                'message' => $test_message,
+                'message_type' => 'admin',
+                'status' => 'open',
+                'created_at' => current_time('mysql')
+            ),
+            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
+        );
+        
+        if ($result) {
+            // Test retrieving the message
+            $tickets = $wpdb->get_results(
+                "SELECT 
+                    user_id,
+                    user_name,
+                    MAX(created_at) as last_message_time,
+                    COUNT(*) as message_count,
+                    status,
+                    CASE 
+                        WHEN MAX(admin_id) IS NOT NULL THEN 1 
+                        ELSE 0 
+                    END as is_read_by_admin,
+                    (SELECT message FROM $table_name t2 
+                     WHERE t2.user_id = t1.user_id 
+                     ORDER BY t2.created_at DESC 
+                     LIMIT 1) as last_message
+                FROM $table_name t1
+                WHERE user_id = '$test_user_id'
+                GROUP BY user_id, user_name, status
+                ORDER BY last_message_time DESC",
+                ARRAY_A
+            );
+            
+            if (count($tickets) > 0) {
+                echo "✅ Test successful! Found " . count($tickets) . " tickets for test user.<br>";
+                echo "Test ticket: " . print_r($tickets[0], true);
+            } else {
+                echo "❌ Test failed! No tickets found for test user.";
+            }
+            
+            // Clean up test data
+            $wpdb->delete($table_name, array('user_id' => $test_user_id));
+        } else {
+            echo "❌ Test failed! Could not insert test message. Error: " . $wpdb->last_error;
+        }
     }
     
     /**

@@ -749,6 +749,7 @@ if (!defined('ABSPATH')) {
                             <option value="unread">Unread</option>
                             <option value="read">Read</option>
                         </select>
+                        <button type="button" id="test-support-chat" class="button" style="margin-left: 10px;">Test Support Chat</button>
                         <div class="surf-auto-refresh-indicator" id="auto-refresh-indicator">
                             <div class="surf-refresh-dot"></div>
                             Auto-updating
@@ -1264,17 +1265,20 @@ jQuery(document).ready(function($) {
     
     // Support management functions
     function loadSupportTickets() {
+        console.log('Loading support tickets...');
         $.ajax({
             url: '<?php echo admin_url('admin-ajax.php'); ?>',
-            type: 'GET',
+            type: 'POST',
             data: {
                 action: 'surf_social_get_support_tickets',
                 nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>',
                 status: supportStatusFilter
             },
             success: function(response) {
+                console.log('Support tickets response:', response);
                 if (response.success) {
                     currentSupportTickets = response.data.tickets;
+                    console.log('Found tickets:', currentSupportTickets.length);
                     displaySupportTickets();
                 } else {
                     console.error('Error loading support tickets:', response.data);
@@ -1287,18 +1291,31 @@ jQuery(document).ready(function($) {
     }
     
     function displaySupportTickets() {
+        console.log('Displaying support tickets...');
+        console.log('Current tickets:', currentSupportTickets);
+        console.log('Status filter:', supportStatusFilter);
+        
         const ticketsList = $('#surf-tickets-list');
         ticketsList.empty();
         
         if (currentSupportTickets.length === 0) {
+            console.log('No tickets to display');
             ticketsList.html('<div class="surf-loading">No support tickets found</div>');
             return;
         }
         
+        let displayedCount = 0;
         currentSupportTickets.forEach(ticket => {
+            console.log('Processing ticket:', ticket);
             // Filter tickets based on status filter
-            if (supportStatusFilter === 'unread' && ticket.is_read_by_admin) return;
-            if (supportStatusFilter === 'read' && !ticket.is_read_by_admin) return;
+            if (supportStatusFilter === 'unread' && ticket.is_read_by_admin) {
+                console.log('Skipping read ticket for unread filter');
+                return;
+            }
+            if (supportStatusFilter === 'read' && !ticket.is_read_by_admin) {
+                console.log('Skipping unread ticket for read filter');
+                return;
+            }
             
             const ticketEl = $(`
                 <div class="surf-ticket-item" data-user-id="${ticket.user_id}">
@@ -1315,7 +1332,10 @@ jQuery(document).ready(function($) {
             `);
             
             ticketsList.append(ticketEl);
+            displayedCount++;
         });
+        
+        console.log(`Displayed ${displayedCount} tickets`);
         
         // Add click handlers
         $('.surf-ticket-item').on('click', function() {
@@ -1509,6 +1529,13 @@ jQuery(document).ready(function($) {
         }
     });
     
+    // Test support chat functionality
+    $('#test-support-chat').on('click', function() {
+        if (confirm('This will test the support chat functionality. Continue?')) {
+            testSupportChat();
+        }
+    });
+    
     
     
     
@@ -1517,6 +1544,40 @@ jQuery(document).ready(function($) {
     $('#surf_social_pusher_key, #surf_social_websocket_url, #surf_social_use_pusher').on('change', function() {
         setTimeout(loadStats, 500);
     });
+    
+    // Test support chat functionality
+    function testSupportChat() {
+        console.log('Testing support chat functionality...');
+        
+        // Test 1: Send a test message
+        const testUserId = 'test_' + Date.now();
+        const testMessage = 'Test message from admin panel at ' + new Date().toLocaleTimeString();
+        
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'POST',
+            data: {
+                action: 'surf_social_send_admin_reply',
+                nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>',
+                user_id: testUserId,
+                message: testMessage
+            },
+            success: function(response) {
+                console.log('Test message sent:', response);
+                if (response.success) {
+                    alert('✅ Test message sent successfully! Check the tickets list.');
+                    // Reload tickets to see the test message
+                    loadSupportTickets();
+                } else {
+                    alert('❌ Test failed: ' + response.data);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Test error:', error);
+                alert('❌ Test failed: ' + error);
+            }
+        });
+    }
 });
 </script>
 
