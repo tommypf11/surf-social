@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.77
+Version: 1.0.78
 Author: Thomas Fraher
 */
 
@@ -785,8 +785,22 @@ class Surf_Social {
         
         error_log("Surf Social Debug - Found " . count($messages) . " messages for user_id: " . $user_id);
         
+        // Format messages for frontend display
+        $formatted_messages = array();
+        foreach ($messages as $message) {
+            $formatted_message = $message;
+            
+            // If this is an admin message, show "Support" as the sender
+            if ($message['message_type'] === 'admin') {
+                $formatted_message['user_name'] = 'Support';
+                $formatted_message['user_id'] = 'admin';
+            }
+            
+            $formatted_messages[] = $formatted_message;
+        }
+        
         return new WP_REST_Response(array(
-            'messages' => array_reverse($messages),
+            'messages' => array_reverse($formatted_messages),
             'page' => $page,
             'has_more' => count($messages) === $per_page
         ), 200);

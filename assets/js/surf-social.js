@@ -1342,6 +1342,11 @@
      * Create message element
      */
     function createMessageElement(msg) {
+        // Check if this is a support chat message
+        if (currentTab === 'support' && !config.currentUser.isAdmin) {
+            return createSupportMessageElement(msg);
+        }
+        
         const message = document.createElement('div');
         message.className = 'surf-message';
         message.dataset.messageId = msg.id;
@@ -1389,6 +1394,43 @@
         
         message.appendChild(header);
         message.appendChild(content);
+        
+        return message;
+    }
+    
+    /**
+     * Create support message element (consistent with friend chat UI)
+     */
+    function createSupportMessageElement(msg) {
+        const message = document.createElement('div');
+        message.className = 'surf-message-item';
+        message.dataset.messageId = msg.id;
+        
+        // Determine if this is an admin message or user message
+        const isAdmin = msg.user_id === 'admin' || msg.message_type === 'admin';
+        
+        if (isAdmin) {
+            message.classList.add('admin');
+        } else {
+            message.classList.add('user');
+        }
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'surf-message-bubble';
+        bubble.textContent = msg.message;
+        
+        const meta = document.createElement('div');
+        meta.className = 'surf-message-meta';
+        
+        // Show "Support" for admin messages, user name for user messages
+        const senderName = isAdmin ? 'Support' : (msg.user_name || 'You');
+        const messageTime = new Date(msg.created_at);
+        const timeStr = messageTime.toLocaleTimeString();
+        
+        meta.textContent = `${senderName} • ${timeStr}`;
+        
+        message.appendChild(bubble);
+        message.appendChild(meta);
         
         return message;
     }
@@ -1889,10 +1931,11 @@
         
         const msg = {
             user_id: 'admin',
-            user_name: data.admin_name,
+            user_name: 'Support', // Always show "Support" instead of admin name
             message: data.message,
             created_at: data.created_at,
-            user_color: '#E74C3C'
+            user_color: '#E74C3C',
+            message_type: 'admin' // Add message type for proper handling
         };
         
         // Store message in support chat
