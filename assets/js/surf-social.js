@@ -48,10 +48,6 @@
     const emailInput = document.getElementById('surf-email-input');
     const joinButton = document.getElementById('surf-join-button');
     
-    // File Upload Elements
-    const attachButton = document.getElementById('surf-attach-button');
-    const fileInput = document.getElementById('surf-file-input');
-    
     /**
      * Initialize the plugin
      */
@@ -87,17 +83,6 @@
             }
         });
         chatSend.addEventListener('click', sendMessage);
-        
-        // File upload
-        if (attachButton) {
-            attachButton.addEventListener('click', () => {
-                fileInput.click();
-            });
-        }
-        
-        if (fileInput) {
-            fileInput.addEventListener('change', handleFileUpload);
-        }
         
         // Add input validation for guest registration
         if (nameInput) {
@@ -918,15 +903,44 @@
             chatMessages.innerHTML = '';
             
             if (data.messages && data.messages.length > 0) {
-                // Store messages locally
-                individualChats.set('admin', data.messages);
+                // Merge with existing local messages instead of replacing
+                const existingMessages = individualChats.get('admin') || [];
+                const allMessages = [...data.messages, ...existingMessages];
                 
-                renderMessages(data.messages);
+                // Remove duplicates based on message content and timestamp
+                const uniqueMessages = allMessages.filter((message, index, self) => 
+                    index === self.findIndex(m => 
+                        m.message === message.message && 
+                        m.created_at === message.created_at &&
+                        m.user_id === message.user_id
+                    )
+                );
+                
+                // Sort by created_at
+                uniqueMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                
+                // Store messages locally
+                individualChats.set('admin', uniqueMessages);
+                
+                renderMessages(uniqueMessages);
             } else {
-                showEmptyState('How can we help you today?');
+                // Show existing local messages if any
+                const existingMessages = individualChats.get('admin') || [];
+                if (existingMessages.length > 0) {
+                    renderMessages(existingMessages);
+                } else {
+                    showEmptyState('How can we help you today?');
+                }
             }
         } catch (error) {
-            chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load support messages</p></div>';
+            // Show existing local messages if any, even on error
+            const existingMessages = individualChats.get('admin') || [];
+            if (existingMessages.length > 0) {
+                chatMessages.innerHTML = '';
+                renderMessages(existingMessages);
+            } else {
+                chatMessages.innerHTML = '<div class="surf-empty-state"><p>Failed to load support messages</p></div>';
+            }
         }
     }
     
@@ -1036,37 +1050,11 @@
         const content = document.createElement('div');
         content.className = 'surf-message-content';
         
-        // Handle image messages
-        if (msg.type === 'image' && msg.image_url) {
-            const imageContainer = document.createElement('div');
-            imageContainer.className = 'surf-message-image-container';
-            
-            const img = document.createElement('img');
-            img.className = 'surf-message-image';
-            img.src = msg.image_url;
-            img.alt = 'Uploaded image';
-            img.loading = 'lazy';
-            
-            const overlay = document.createElement('div');
-            overlay.className = 'surf-message-image-overlay';
-            overlay.textContent = 'Click to view';
-            
-            imageContainer.appendChild(img);
-            imageContainer.appendChild(overlay);
-            
-            // Add click handler to open image in new tab
-            imageContainer.addEventListener('click', () => {
-                window.open(msg.image_url, '_blank');
-            });
-            
-            content.appendChild(imageContainer);
-        } else {
-            // Regular text message
-            const bubble = document.createElement('div');
-            bubble.className = 'surf-message-bubble';
-            bubble.textContent = msg.message;
-            content.appendChild(bubble);
-        }
+        const bubble = document.createElement('div');
+        bubble.className = 'surf-message-bubble';
+        bubble.textContent = msg.message;
+        
+        content.appendChild(bubble);
         
         message.appendChild(header);
         message.appendChild(content);
@@ -1181,9 +1169,7 @@
                 message: msg.message,
                 user_name: msg.user_name,
                 user_id: msg.user_id,
-                channel: 'web',
-                image_url: msg.image_url || '',
-                type: msg.type || 'text'
+                channel: 'web'
             })
         });
         
@@ -1222,9 +1208,7 @@
                     sender_name: config.currentUser.name,
                     recipient_id: targetUser.id,
                     recipient_name: targetUser.name,
-                    message: msg.message,
-                    image_url: msg.image_url || '',
-                    type: msg.type || 'text'
+                    message: msg.message
                 })
             });
             
@@ -1273,9 +1257,7 @@
                     user_id: config.currentUser.id,
                     user_name: config.currentUser.name,
                     message: msg.message,
-                    message_type: 'user',
-                    image_url: msg.image_url || '',
-                    type: msg.type || 'text'
+                    message_type: 'user'
                 })
             });
             
@@ -1304,140 +1286,6 @@
             }
         } catch (error) {
             throw error;
-        }
-    }
-    
-    /**
-     * Handle file upload
-     */
-    async function handleFileUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file.');
-            return;
-        }
-        
-        // Validate file size (5MB limit)
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Image size must be less than 5MB.');
-            return;
-        }
-        
-        try {
-            // Show upload progress
-            const progressEl = showUploadProgress(file.name);
-            
-            // Upload image
-            const imageUrl = await uploadImage(file, (progress) => {
-                updateUploadProgress(progressEl, progress);
-            });
-            
-            // Create image message
-            const msg = {
-                user_id: config.currentUser.id,
-                user_name: config.currentUser.name,
-                message: '', // Empty for image messages
-                image_url: imageUrl,
-                created_at: new Date().toISOString(),
-                user_color: config.currentUser.color,
-                type: 'image'
-            };
-            
-            // Send message based on current tab
-            if (currentTab === 'web') {
-                await sendWebChatMessage(msg);
-            } else if (currentTab === 'friend' && currentChatUser) {
-                await sendIndividualChatMessage(msg, currentChatUser);
-            } else if (currentTab === 'support') {
-                await sendSupportMessage(msg);
-            }
-            
-            // Add message to current view immediately
-            const messageEl = createMessageElement(msg);
-            chatMessages.appendChild(messageEl);
-            scrollToBottom();
-            
-            // Remove progress indicator
-            progressEl.remove();
-            
-        } catch (error) {
-            console.error('Upload failed:', error);
-            alert('Failed to upload image. Please try again.');
-        }
-        
-        // Clear file input
-        event.target.value = '';
-    }
-    
-    /**
-     * Upload image to server
-     */
-    async function uploadImage(file, progressCallback) {
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('user_id', config.currentUser.id);
-        formData.append('user_name', config.currentUser.name);
-        
-        const xhr = new XMLHttpRequest();
-        
-        return new Promise((resolve, reject) => {
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const progress = (e.loaded / e.total) * 100;
-                    progressCallback(progress);
-                }
-            });
-            
-            xhr.addEventListener('load', () => {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.success) {
-                        resolve(response.data.url);
-                    } else {
-                        reject(new Error(response.message || 'Upload failed'));
-                    }
-                } else {
-                    reject(new Error('Upload failed'));
-                }
-            });
-            
-            xhr.addEventListener('error', () => {
-                reject(new Error('Upload failed'));
-            });
-            
-            xhr.open('POST', `${config.apiUrl}upload/image`);
-            xhr.setRequestHeader('X-WP-Nonce', config.nonce);
-            xhr.send(formData);
-        });
-    }
-    
-    /**
-     * Show upload progress
-     */
-    function showUploadProgress(filename) {
-        const progressEl = document.createElement('div');
-        progressEl.className = 'surf-upload-progress';
-        progressEl.innerHTML = `
-            <span>Uploading ${filename}...</span>
-            <div class="surf-upload-progress-bar">
-                <div class="surf-upload-progress-fill" style="width: 0%"></div>
-            </div>
-        `;
-        chatMessages.appendChild(progressEl);
-        scrollToBottom();
-        return progressEl;
-    }
-    
-    /**
-     * Update upload progress
-     */
-    function updateUploadProgress(progressEl, progress) {
-        const fill = progressEl.querySelector('.surf-upload-progress-fill');
-        if (fill) {
-            fill.style.width = `${progress}%`;
         }
     }
     

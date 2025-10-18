@@ -420,14 +420,14 @@ if (!defined('ABSPATH')) {
     text-transform: uppercase;
 }
 
-.surf-ticket-status.open {
-    background: #d4edda;
-    color: #155724;
+.surf-ticket-status.unread {
+    background: #fff3cd;
+    color: #856404;
 }
 
-.surf-ticket-status.closed {
-    background: #f8d7da;
-    color: #721c24;
+.surf-ticket-status.read {
+    background: #d1ecf1;
+    color: #0c5460;
 }
 
 .surf-ticket-message {
@@ -492,25 +492,6 @@ if (!defined('ABSPATH')) {
     gap: 10px;
 }
 
-.surf-close-ticket-btn {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: background-color 0.2s;
-}
-
-.surf-close-ticket-btn:hover:not(:disabled) {
-    background: #c82333;
-}
-
-.surf-close-ticket-btn:disabled {
-    background: #6c757d;
-    cursor: not-allowed;
-}
 
 .surf-conversation-messages {
     flex: 1;
@@ -739,8 +720,8 @@ if (!defined('ABSPATH')) {
                     <div class="surf-tickets-controls">
                         <select id="support-status-filter">
                             <option value="all">All Tickets</option>
-                            <option value="open">Open</option>
-                            <option value="closed">Closed</option>
+                            <option value="unread">Unread</option>
+                            <option value="read">Read</option>
                         </select>
                         <button class="surf-refresh-btn" id="refresh-support-tickets">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -761,7 +742,6 @@ if (!defined('ABSPATH')) {
                 <div class="surf-conversation-header">
                     <h3 id="conversation-title">Select a ticket to view conversation</h3>
                     <div class="surf-conversation-actions">
-                        <button id="close-ticket-btn" class="surf-close-ticket-btn" disabled>Close Ticket</button>
                     </div>
                 </div>
                 
@@ -1292,7 +1272,7 @@ jQuery(document).ready(function($) {
                 <div class="surf-ticket-item" data-user-id="${ticket.user_id}">
                     <div class="surf-ticket-header">
                         <div class="surf-ticket-user">${ticket.user_name}</div>
-                        <div class="surf-ticket-status ${ticket.status}">${ticket.status}</div>
+                        <div class="surf-ticket-status ${ticket.is_read_by_admin ? 'read' : 'unread'}">${ticket.is_read_by_admin ? 'Read' : 'Unread'}</div>
                     </div>
                     <div class="surf-ticket-message">${ticket.last_message || 'No messages yet'}</div>
                     <div class="surf-ticket-meta">
@@ -1321,6 +1301,9 @@ jQuery(document).ready(function($) {
         
         // Load conversation
         loadSupportConversation(userId);
+        
+        // Mark messages as read
+        markSupportAsRead(userId);
     }
     
     function loadSupportConversation(userId) {
@@ -1349,19 +1332,11 @@ jQuery(document).ready(function($) {
         const conversationMessages = $('#surf-conversation-messages');
         const conversationTitle = $('#conversation-title');
         const conversationInput = $('#surf-conversation-input');
-        const closeTicketBtn = $('#close-ticket-btn');
-        
         // Update title
         conversationTitle.text(`Chat with ${userInfo.user_name}`);
         
-        // Show/hide input and close button based on status
-        if (userInfo.status === 'open') {
-            conversationInput.show();
-            closeTicketBtn.prop('disabled', false);
-        } else {
-            conversationInput.hide();
-            closeTicketBtn.prop('disabled', true);
-        }
+        // Always show input for support conversations
+        conversationInput.show();
         
         // Clear and populate messages
         conversationMessages.empty();
@@ -1417,30 +1392,26 @@ jQuery(document).ready(function($) {
         });
     }
     
-    function closeSupportTicket() {
-        if (!selectedTicketUserId) return;
-        
-        if (!confirm('Are you sure you want to close this support ticket?')) return;
-        
+    function markSupportAsRead(userId) {
         $.ajax({
             url: '<?php echo admin_url('admin-ajax.php'); ?>',
             type: 'POST',
             data: {
-                action: 'surf_social_close_support_ticket',
+                action: 'surf_social_mark_support_read',
                 nonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>',
-                user_id: selectedTicketUserId
+                user_id: userId
             },
             success: function(response) {
                 if (response.success) {
-                    // Reload tickets and conversation
-                    loadSupportTickets();
-                    loadSupportConversation(selectedTicketUserId);
-                } else {
-                    alert('Error closing ticket: ' + response.data);
+                    // Update the ticket status in the UI
+                    $(`.surf-ticket-item[data-user-id="${userId}"] .surf-ticket-status`)
+                        .removeClass('unread')
+                        .addClass('read')
+                        .text('Read');
                 }
             },
             error: function(xhr, status, error) {
-                alert('Error closing ticket: ' + error);
+                console.error('Error marking support as read:', error);
             }
         });
     }
@@ -1480,9 +1451,6 @@ jQuery(document).ready(function($) {
         }
     });
     
-    $('#close-ticket-btn').on('click', function() {
-        closeSupportTicket();
-    });
     
     
     

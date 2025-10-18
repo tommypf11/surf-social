@@ -40,15 +40,7 @@ if (!defined('ABSPATH')) {
             
             <!-- Normal Chat Input (hidden initially, shown after registration) -->
             <div class="surf-normal-chat" id="surf-normal-chat" style="display: none;">
-                <div class="surf-input-container">
-                    <input type="text" class="surf-chat-input" placeholder="Type a message..." id="surf-chat-input">
-                    <button class="surf-attach-button" id="surf-attach-button" aria-label="Attach image">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M21.44 11.05L12.25 20.24C11.1242 21.3658 9.59722 21.9983 8.005 21.9983C6.41278 21.9983 4.88583 21.3658 3.76 20.24C2.63417 19.1142 2.00167 17.5872 2.00167 15.995C2.00167 14.4028 2.63417 12.8758 3.76 11.75L12.95 2.56C13.7006 1.80944 14.7186 1.38787 15.79 1.38787C16.8614 1.38787 17.8794 1.80944 18.63 2.56C19.3806 3.31056 19.8021 4.32856 19.8021 5.4C19.8021 6.47144 19.3806 7.48944 18.63 8.24L9.41 17.46C9.03444 17.8356 8.53111 18.0456 8.005 18.0456C7.47889 18.0456 6.97556 17.8356 6.6 17.46C6.22444 17.0844 6.01444 16.5811 6.01444 16.055C6.01444 15.5289 6.22444 15.0256 6.6 14.65L15.07 6.18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                    <input type="file" class="surf-file-input" id="surf-file-input" accept="image/*" style="display: none;">
-                </div>
+                <input type="text" class="surf-chat-input" placeholder="Type a message..." id="surf-chat-input">
                 <button class="surf-chat-send" aria-label="Send message">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

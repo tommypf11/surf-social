@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.57
+Version: 1.0.58
 Author: Thomas Fraher
 */
 
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SURF_SOCIAL_VERSION', '1.0.0');
+define('SURF_SOCIAL_VERSION', '1.0.57');
 define('SURF_SOCIAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SURF_SOCIAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -62,7 +62,7 @@ class Surf_Social {
         add_action('wp_ajax_surf_social_get_support_tickets', array($this, 'ajax_get_support_tickets'));
         add_action('wp_ajax_surf_social_get_support_conversation', array($this, 'ajax_get_support_conversation'));
         add_action('wp_ajax_surf_social_send_admin_reply', array($this, 'ajax_send_admin_reply'));
-        add_action('wp_ajax_surf_social_close_support_ticket', array($this, 'ajax_close_support_ticket'));
+        add_action('wp_ajax_surf_social_mark_support_read', array($this, 'ajax_mark_support_read'));
     }
     
     /**
@@ -117,8 +117,6 @@ class Surf_Social {
                     user_id varchar(100) NOT NULL,
                     user_name varchar(100) NOT NULL,
                     message text NOT NULL,
-                    image_url varchar(500) NULL,
-                    message_type varchar(20) NOT NULL DEFAULT 'text',
                     channel varchar(50) NOT NULL DEFAULT 'web',
                     created_at datetime DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY  (id),
@@ -136,8 +134,6 @@ class Surf_Social {
                     recipient_id varchar(100) NOT NULL,
                     recipient_name varchar(100) NOT NULL,
                     message text NOT NULL,
-                    image_url varchar(500) NULL,
-                    message_type varchar(20) NOT NULL DEFAULT 'text',
                     created_at datetime DEFAULT CURRENT_TIMESTAMP,
                     read_at datetime NULL,
                     PRIMARY KEY  (id),
@@ -155,15 +151,15 @@ class Surf_Social {
                     admin_id bigint(20) NULL,
                     admin_name varchar(100) NULL,
                     message text NOT NULL,
-                    image_url varchar(500) NULL,
                     message_type enum('user', 'admin') DEFAULT 'user',
-                    content_type varchar(20) NOT NULL DEFAULT 'text',
-                    status enum('open', 'closed', 'resolved') DEFAULT 'open',
+                    is_read_by_admin tinyint(1) DEFAULT 0,
+                    is_read_by_user tinyint(1) DEFAULT 1,
                     created_at datetime DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY  (id),
                     KEY user_id (user_id),
                     KEY admin_id (admin_id),
-                    KEY status (status),
+                    KEY is_read_by_admin (is_read_by_admin),
+                    KEY is_read_by_user (is_read_by_user),
                     KEY created_at (created_at)
                 ) $charset_collate;";
                 break;
@@ -450,13 +446,6 @@ class Surf_Social {
             'callback' => array($this, 'register_guest'),
             'permission_callback' => '__return_true'
         ));
-        
-        // Image upload endpoint
-        register_rest_route('surf-social/v1', '/upload/image', array(
-            'methods' => 'POST',
-            'callback' => array($this, 'upload_image'),
-            'permission_callback' => '__return_true'
-        ));
     }
     
     /**
@@ -497,15 +486,9 @@ class Surf_Social {
         $user_name = $request->get_param('user_name');
         $user_id = $request->get_param('user_id');
         $channel = $request->get_param('channel') ?: 'web';
-        $image_url = $request->get_param('image_url');
-        $message_type = $request->get_param('type') ?: 'text';
         
-        if (empty($message) && empty($image_url)) {
-            return new WP_Error('invalid_data', 'Message or image is required', array('status' => 400));
-        }
-        
-        if (empty($user_name)) {
-            return new WP_Error('invalid_data', 'User name is required', array('status' => 400));
+        if (empty($message) || empty($user_name)) {
+            return new WP_Error('invalid_data', 'Message and user name are required', array('status' => 400));
         }
         
         $result = $wpdb->insert(
@@ -514,12 +497,10 @@ class Surf_Social {
                 'user_id' => $user_id,
                 'user_name' => sanitize_text_field($user_name),
                 'message' => sanitize_textarea_field($message),
-                'image_url' => sanitize_url($image_url),
-                'message_type' => sanitize_text_field($message_type),
                 'channel' => sanitize_text_field($channel),
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -659,15 +640,9 @@ class Surf_Social {
         $recipient_id = $request->get_param('recipient_id');
         $recipient_name = $request->get_param('recipient_name');
         $message = $request->get_param('message');
-        $image_url = $request->get_param('image_url');
-        $message_type = $request->get_param('type') ?: 'text';
         
-        if (empty($message) && empty($image_url)) {
-            return new WP_Error('invalid_data', 'Message or image is required', array('status' => 400));
-        }
-        
-        if (empty($sender_id) || empty($recipient_id)) {
-            return new WP_Error('invalid_data', 'Sender ID and recipient ID are required', array('status' => 400));
+        if (empty($message) || empty($sender_id) || empty($recipient_id)) {
+            return new WP_Error('invalid_data', 'Message, sender ID, and recipient ID are required', array('status' => 400));
         }
         
         $result = $wpdb->insert(
@@ -678,11 +653,9 @@ class Surf_Social {
                 'recipient_id' => $recipient_id,
                 'recipient_name' => sanitize_text_field($recipient_name),
                 'message' => sanitize_textarea_field($message),
-                'image_url' => sanitize_url($image_url),
-                'message_type' => sanitize_text_field($message_type),
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result) {
@@ -787,16 +760,14 @@ class Surf_Social {
         $message_type = $request->get_param('message_type') ?: 'user';
         $admin_id = $request->get_param('admin_id');
         $admin_name = $request->get_param('admin_name');
-        $image_url = $request->get_param('image_url');
-        $content_type = $request->get_param('type') ?: 'text';
         
-        if (empty($message) && empty($image_url)) {
-            return new WP_Error('invalid_data', 'Message or image is required', array('status' => 400));
+        if (empty($message) || empty($user_id)) {
+            return new WP_Error('invalid_data', 'Message and user ID are required', array('status' => 400));
         }
         
-        if (empty($user_id)) {
-            return new WP_Error('invalid_data', 'User ID is required', array('status' => 400));
-        }
+        // Set read status based on message type
+        $is_read_by_admin = ($message_type === 'admin') ? 1 : 0;
+        $is_read_by_user = ($message_type === 'user') ? 1 : 0;
         
         $result = $wpdb->insert(
             $table_name,
@@ -806,12 +777,12 @@ class Surf_Social {
                 'admin_id' => $admin_id,
                 'admin_name' => sanitize_text_field($admin_name),
                 'message' => sanitize_textarea_field($message),
-                'image_url' => sanitize_url($image_url),
                 'message_type' => sanitize_text_field($message_type),
-                'content_type' => sanitize_text_field($content_type),
+                'is_read_by_admin' => $is_read_by_admin,
+                'is_read_by_user' => $is_read_by_user,
                 'created_at' => current_time('mysql')
             ),
-            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%d', '%s', '%s', '%s', '%d', '%d', '%s')
         );
         
         if ($result) {
@@ -884,7 +855,7 @@ class Surf_Social {
             'unique_users' => $wpdb->get_var("SHOW TABLES LIKE '$web_messages_table'") ? 
                 $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $web_messages_table") : 0,
             'active_support_tickets' => $wpdb->get_var("SHOW TABLES LIKE '$support_messages_table'") ? 
-                $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'") : 0,
+                $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE is_read_by_admin = 0") : 0,
             'user_submissions' => $get_count($guests_table)
         );
         
@@ -1174,7 +1145,7 @@ class Surf_Social {
             'total_support_messages' => $wpdb->get_var("SELECT COUNT(*) FROM $support_messages_table"),
             'messages_today' => $wpdb->get_var("SELECT COUNT(*) FROM $web_messages_table WHERE DATE(created_at) = CURDATE()"),
             'unique_users' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $web_messages_table"),
-            'active_support_tickets' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE status = 'open'"),
+            'active_support_tickets' => $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $support_messages_table WHERE is_read_by_admin = 0"),
             'user_submissions' => $wpdb->get_var("SELECT COUNT(*) FROM $guests_table")
         );
         
@@ -1280,6 +1251,9 @@ class Surf_Social {
         // Migrate existing tables to use varchar for user_id
         self::migrate_user_id_columns();
         
+        // Migrate support messages schema
+        self::migrate_support_messages_schema();
+        
         // Individual messages table
         $table_name = $wpdb->prefix . 'surf_social_individual_messages';
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -1308,12 +1282,14 @@ class Surf_Social {
             admin_name varchar(100) NULL,
             message text NOT NULL,
             message_type enum('user', 'admin') DEFAULT 'user',
-            status enum('open', 'closed', 'resolved') DEFAULT 'open',
+                    is_read_by_admin tinyint(1) DEFAULT 0,
+                    is_read_by_user tinyint(1) DEFAULT 1,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY user_id (user_id),
             KEY admin_id (admin_id),
-            KEY status (status),
+            KEY is_read_by_admin (is_read_by_admin),
+            KEY is_read_by_user (is_read_by_user),
             KEY created_at (created_at)
         ) $charset_collate;";
         dbDelta($sql);
@@ -1385,6 +1361,39 @@ class Surf_Social {
     }
     
     /**
+     * Migrate support messages table from status to read/unread columns
+     */
+    private static function migrate_support_messages_schema() {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'surf_social_support_messages';
+        
+        // Check if table exists
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            return;
+        }
+        
+        // Check if status column exists
+        $status_column = $wpdb->get_row("SHOW COLUMNS FROM $table_name LIKE 'status'");
+        if ($status_column) {
+            // Add new columns
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_read_by_admin tinyint(1) DEFAULT 0");
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN is_read_by_user tinyint(1) DEFAULT 1");
+            
+            // Migrate existing data: open = unread by admin, closed = read by admin
+            $wpdb->query("UPDATE $table_name SET is_read_by_admin = 0 WHERE status = 'open'");
+            $wpdb->query("UPDATE $table_name SET is_read_by_admin = 1 WHERE status = 'closed'");
+            
+            // Drop old status column
+            $wpdb->query("ALTER TABLE $table_name DROP COLUMN status");
+            
+            // Add new indexes
+            $wpdb->query("ALTER TABLE $table_name ADD KEY is_read_by_admin (is_read_by_admin)");
+            $wpdb->query("ALTER TABLE $table_name ADD KEY is_read_by_user (is_read_by_user)");
+        }
+    }
+    
+    /**
      * AJAX handler for getting support tickets
      */
     public function ajax_get_support_tickets() {
@@ -1401,10 +1410,10 @@ class Surf_Social {
         }
         
         $where_clause = '';
-        if ($status_filter === 'open') {
-            $where_clause = "WHERE status = 'open'";
-        } elseif ($status_filter === 'closed') {
-            $where_clause = "WHERE status = 'closed'";
+        if ($status_filter === 'unread') {
+            $where_clause = "WHERE is_read_by_admin = 0";
+        } elseif ($status_filter === 'read') {
+            $where_clause = "WHERE is_read_by_admin = 1";
         }
         
         $tickets = $wpdb->get_results(
@@ -1413,13 +1422,14 @@ class Surf_Social {
                 user_name,
                 MAX(created_at) as last_message_time,
                 COUNT(*) as message_count,
-                status,
+                MAX(is_read_by_admin) as is_read_by_admin,
+                MAX(is_read_by_user) as is_read_by_user,
                 (SELECT message FROM $support_table s2 
                  WHERE s2.user_id = s1.user_id 
                  ORDER BY created_at DESC LIMIT 1) as last_message
             FROM $support_table s1 
             $where_clause
-            GROUP BY user_id, user_name, status
+            GROUP BY user_id, user_name
             ORDER BY last_message_time DESC",
             ARRAY_A
         );
@@ -1514,31 +1524,32 @@ class Surf_Social {
     }
     
     /**
-     * AJAX handler for closing support ticket
+     * AJAX handler for marking support messages as read
      */
-    public function ajax_close_support_ticket() {
+    public function ajax_mark_support_read() {
         check_ajax_referer('surf_social_stats', 'nonce');
         if (!current_user_can('manage_options')) { wp_die('Unauthorized'); }
         
         global $wpdb;
         $support_table = $wpdb->prefix . 'surf_social_support_messages';
-        $user_id = $_POST['user_id'];
-        if (empty($user_id) && $user_id !== '0' && $user_id !== 0) {
+        $user_id = sanitize_text_field($_POST['user_id']);
+        
+        if (empty($user_id)) {
             wp_send_json_error('User ID required');
         }
         
         $result = $wpdb->update(
             $support_table,
-            array('status' => 'closed'),
-            array('user_id' => $user_id),
-            array('%s'),
-            array('%d')
+            array('is_read_by_admin' => 1),
+            array('user_id' => $user_id, 'is_read_by_admin' => 0),
+            array('%d'),
+            array('%s', '%d')
         );
         
         if ($result !== false) {
-            wp_send_json_success('Ticket closed successfully');
+            wp_send_json_success('Messages marked as read');
         } else {
-            wp_send_json_error('Failed to close ticket');
+            wp_send_json_error('Failed to mark messages as read');
         }
     }
     
@@ -1629,61 +1640,6 @@ class Surf_Social {
         $websocket_url = get_option('surf_social_websocket_url');
         if ($websocket_url) {
             $this->broadcast_via_websocket('support-message', $data);
-        }
-    }
-    
-    /**
-     * Upload image
-     */
-    public function upload_image($request) {
-        // Check if file was uploaded
-        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
-            return new WP_Error('upload_failed', 'No image file uploaded', array('status' => 400));
-        }
-        
-        $file = $_FILES['image'];
-        $user_id = sanitize_text_field($_POST['user_id'] ?? '');
-        $user_name = sanitize_text_field($_POST['user_name'] ?? '');
-        
-        // Validate file type
-        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
-        $file_type = wp_check_filetype($file['name']);
-        
-        if (!in_array($file['type'], $allowed_types)) {
-            return new WP_Error('invalid_type', 'Invalid file type. Only images are allowed.', array('status' => 400));
-        }
-        
-        // Validate file size (5MB limit)
-        if ($file['size'] > 5 * 1024 * 1024) {
-            return new WP_Error('file_too_large', 'File size must be less than 5MB.', array('status' => 400));
-        }
-        
-        // Create upload directory
-        $upload_dir = wp_upload_dir();
-        $surf_social_dir = $upload_dir['basedir'] . '/surf-social';
-        
-        if (!file_exists($surf_social_dir)) {
-            wp_mkdir_p($surf_social_dir);
-        }
-        
-        // Generate unique filename
-        $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $filename = 'surf_' . time() . '_' . wp_generate_password(8, false) . '.' . $file_extension;
-        $file_path = $surf_social_dir . '/' . $filename;
-        
-        // Move uploaded file
-        if (move_uploaded_file($file['tmp_name'], $file_path)) {
-            $file_url = $upload_dir['baseurl'] . '/surf-social/' . $filename;
-            
-            return new WP_REST_Response(array(
-                'success' => true,
-                'data' => array(
-                    'url' => $file_url,
-                    'filename' => $filename
-                )
-            ), 200);
-        } else {
-            return new WP_Error('upload_failed', 'Failed to save uploaded file', array('status' => 500));
         }
     }
     
