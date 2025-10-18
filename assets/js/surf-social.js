@@ -1342,10 +1342,6 @@
      * Create message element
      */
     function createMessageElement(msg) {
-        // Check if this is a support chat message
-        if (currentTab === 'support' && !config.currentUser.isAdmin) {
-            return createSupportMessageElement(msg);
-        }
         
         const message = document.createElement('div');
         message.className = 'surf-message';
@@ -1374,11 +1370,23 @@
         const avatar = document.createElement('div');
         avatar.className = 'surf-message-avatar';
         avatar.style.backgroundColor = msg.user_color || colors[msg.user_id % colors.length];
-        avatar.textContent = (msg.user_name && msg.user_name.charAt) ? msg.user_name.charAt(0).toUpperCase() : '?';
+        
+        // For support chat admin messages, show "S" for Support
+        if (currentTab === 'support' && (msg.user_id === 'admin' || msg.message_type === 'admin')) {
+            avatar.textContent = 'S';
+        } else {
+            avatar.textContent = (msg.user_name && msg.user_name.charAt) ? msg.user_name.charAt(0).toUpperCase() : '?';
+        }
         
         const name = document.createElement('div');
         name.className = 'surf-message-name';
-        name.textContent = msg.user_name || 'Unknown User';
+        
+        // For support chat, show "Support" for admin messages
+        if (currentTab === 'support' && (msg.user_id === 'admin' || msg.message_type === 'admin')) {
+            name.textContent = 'Support';
+        } else {
+            name.textContent = msg.user_name || 'Unknown User';
+        }
         
         header.appendChild(avatar);
         header.appendChild(name);
@@ -1394,43 +1402,6 @@
         
         message.appendChild(header);
         message.appendChild(content);
-        
-        return message;
-    }
-    
-    /**
-     * Create support message element (consistent with friend chat UI)
-     */
-    function createSupportMessageElement(msg) {
-        const message = document.createElement('div');
-        message.className = 'surf-message-item';
-        message.dataset.messageId = msg.id;
-        
-        // Determine if this is an admin message or user message
-        const isAdmin = msg.user_id === 'admin' || msg.message_type === 'admin';
-        
-        if (isAdmin) {
-            message.classList.add('admin');
-        } else {
-            message.classList.add('user');
-        }
-        
-        const bubble = document.createElement('div');
-        bubble.className = 'surf-message-bubble';
-        bubble.textContent = msg.message;
-        
-        const meta = document.createElement('div');
-        meta.className = 'surf-message-meta';
-        
-        // Show "Support" for admin messages, user name for user messages
-        const senderName = isAdmin ? 'Support' : (msg.user_name || 'You');
-        const messageTime = new Date(msg.created_at);
-        const timeStr = messageTime.toLocaleTimeString();
-        
-        meta.textContent = `${senderName} • ${timeStr}`;
-        
-        message.appendChild(bubble);
-        message.appendChild(meta);
         
         return message;
     }
@@ -2536,7 +2507,6 @@
                             ${isUnread ? '<span class="surf-unread-indicator">●</span>' : ''}
                         </div>
                         <div class="surf-admin-ticket-meta">
-                            <span class="surf-ticket-count">${ticket.message_count} messages</span>
                             <span class="surf-ticket-time">${timeAgo}</span>
                         </div>
                     </div>

@@ -1155,9 +1155,9 @@
 }
 
 .surf-unread-indicator {
-    color: #ffc107;
-    font-size: 16px;
-    animation: pulse 2s infinite;
+    color: #000000;
+    font-size: 12px;
+    font-weight: bold;
 }
 
 .surf-admin-ticket-meta {
