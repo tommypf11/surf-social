@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.0.72
+Version: 1.0.73
 Author: Thomas Fraher
 */
 
@@ -539,8 +539,21 @@ class Surf_Social {
         $per_page = 20;
         $offset = ($page - 1) * $per_page;
         
+        // Debug logging
+        error_log('Surf Social Debug - get_individual_messages called');
+        error_log('Surf Social Debug - user_id: ' . $user_id);
+        error_log('Surf Social Debug - target_user_id: ' . $target_user_id);
+        
         if (empty($user_id) || empty($target_user_id)) {
+            error_log('Surf Social Debug - Missing required parameters');
             return new WP_Error('missing_params', 'User ID and target user ID are required', array('status' => 400));
+        }
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+        if (!$table_exists) {
+            error_log('Surf Social Debug - Table does not exist: ' . $table_name);
+            return new WP_Error('table_not_found', 'Individual messages table not found', array('status' => 500));
         }
         
         // Handle both string and integer user IDs
@@ -557,6 +570,11 @@ class Surf_Social {
             ),
             ARRAY_A
         );
+        
+        error_log('Surf Social Debug - Found ' . count($messages) . ' messages');
+        if (count($messages) > 0) {
+            error_log('Surf Social Debug - First message: ' . print_r($messages[0], true));
+        }
         
         return new WP_REST_Response(array(
             'messages' => array_reverse($messages),
@@ -578,9 +596,21 @@ class Surf_Social {
         $recipient_name = $request->get_param('recipient_name');
         $message = $request->get_param('message');
         
+        // Debug logging
+        error_log('Surf Social Debug - save_individual_message called');
+        error_log('Surf Social Debug - sender_id: ' . $sender_id);
+        error_log('Surf Social Debug - sender_name: ' . $sender_name);
+        error_log('Surf Social Debug - recipient_id: ' . $recipient_id);
+        error_log('Surf Social Debug - recipient_name: ' . $recipient_name);
+        error_log('Surf Social Debug - message: ' . $message);
+        
         if (empty($message) || empty($sender_id) || empty($recipient_id)) {
+            error_log('Surf Social Debug - Missing required parameters');
             return new WP_Error('invalid_data', 'Message, sender ID, and recipient ID are required', array('status' => 400));
         }
+        
+        // Ensure table exists and has correct structure
+        $this->update_individual_messages_table();
         
         $result = $wpdb->insert(
             $table_name,
@@ -597,13 +627,15 @@ class Surf_Social {
         
         if ($result) {
             $message_id = $wpdb->insert_id;
+            error_log('Surf Social Debug - Message saved successfully with ID: ' . $message_id);
             return new WP_REST_Response(array(
                 'success' => true,
                 'message_id' => $message_id
             ), 201);
         }
         
-        return new WP_Error('save_failed', 'Failed to save message', array('status' => 500));
+        error_log('Surf Social Debug - Failed to save message. Error: ' . $wpdb->last_error);
+        return new WP_Error('save_failed', 'Failed to save message: ' . $wpdb->last_error, array('status' => 500));
     }
     
     /**

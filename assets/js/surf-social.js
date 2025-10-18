@@ -1045,10 +1045,20 @@
             chatMessages.innerHTML = '';
             
             if (data.messages && data.messages.length > 0) {
-                // Store messages locally
-                individualChats.set(user.id, data.messages);
+                // Validate and clean message data
+                const validMessages = data.messages.filter(msg => {
+                    return msg && msg.user_name && msg.message && msg.created_at;
+                });
                 
-                renderMessages(data.messages);
+                if (validMessages.length > 0) {
+                    // Store messages locally
+                    individualChats.set(user.id, validMessages);
+                    renderMessages(validMessages);
+                } else {
+                    console.warn('No valid messages found in response');
+                    individualChats.set(user.id, []);
+                    showEmptyState(`Start a conversation with ${user.name}`);
+                }
             } else {
                 // Initialize empty chat for this user
                 individualChats.set(user.id, []);
@@ -1235,11 +1245,11 @@
         const avatar = document.createElement('div');
         avatar.className = 'surf-message-avatar';
         avatar.style.backgroundColor = msg.user_color || colors[msg.user_id % colors.length];
-        avatar.textContent = msg.user_name.charAt(0).toUpperCase();
+        avatar.textContent = (msg.user_name && msg.user_name.charAt) ? msg.user_name.charAt(0).toUpperCase() : '?';
         
         const name = document.createElement('div');
         name.className = 'surf-message-name';
-        name.textContent = msg.user_name;
+        name.textContent = msg.user_name || 'Unknown User';
         
         header.appendChild(avatar);
         header.appendChild(name);
@@ -1397,6 +1407,14 @@
      */
     async function sendIndividualChatMessage(msg, targetUser) {
         try {
+            console.log('Sending individual message:', {
+                sender_id: config.currentUser.id,
+                sender_name: config.currentUser.name,
+                recipient_id: targetUser.id,
+                recipient_name: targetUser.name,
+                message: msg.message
+            });
+            
             // Save to backend
             const response = await fetch(`${config.apiUrl}chat/individual`, {
                 method: 'POST',
@@ -1413,9 +1431,16 @@
                 })
             });
             
+            console.log('Individual message response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error('Failed to send individual message');
+                const errorText = await response.text();
+                console.error('Individual message error response:', errorText);
+                throw new Error(`Failed to send individual message: ${response.status} ${errorText}`);
             }
+            
+            const responseData = await response.json();
+            console.log('Individual message saved successfully:', responseData);
             
             // Store message locally
             if (!individualChats.has(targetUser.id)) {
