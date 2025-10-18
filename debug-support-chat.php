@@ -122,6 +122,15 @@ Admin URL: <?php echo admin_url(); ?>
 
     <script>
     let liveLoggingInterval = null;
+    
+    // Get WordPress configuration
+    const wpConfig = {
+        apiUrl: '<?php echo rest_url('surf-social/v1/'); ?>',
+        nonce: '<?php echo wp_create_nonce('wp_rest'); ?>',
+        ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
+        debugNonce: '<?php echo wp_create_nonce('surf_social_debug'); ?>',
+        statsNonce: '<?php echo wp_create_nonce('surf_social_stats'); ?>'
+    };
 
     function log(message, type = 'info') {
         const timestamp = new Date().toLocaleTimeString();
@@ -141,12 +150,12 @@ Admin URL: <?php echo admin_url(); ?>
         showResults('database-results', '<div class="log-entry">Testing database connection...</div>');
         
         try {
-            const response = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+            const response = await fetch(wpConfig.ajaxUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'action=surf_social_debug_database&nonce=<?php echo wp_create_nonce('surf_social_debug'); ?>'
+                body: `action=surf_social_debug_database&nonce=${wpConfig.debugNonce}`
             });
             
             const data = await response.json();
@@ -171,10 +180,10 @@ Admin URL: <?php echo admin_url(); ?>
         showResults('restapi-results', '<div class="log-entry">Testing REST API endpoints...</div>');
         
         const endpoints = [
-            { name: 'Support Messages GET', url: '<?php echo rest_url('surf-social/v1/chat/support'); ?>' },
-            { name: 'Support Messages POST', url: '<?php echo rest_url('surf-social/v1/chat/support'); ?>', method: 'POST' },
-            { name: 'Support Tickets GET', url: '<?php echo rest_url('surf-social/v1/chat/support/admin'); ?>' },
-            { name: 'Pusher Auth POST', url: '<?php echo rest_url('surf-social/v1/pusher/auth'); ?>', method: 'POST' }
+            { name: 'Support Messages GET', url: wpConfig.apiUrl + 'chat/support' },
+            { name: 'Support Messages POST', url: wpConfig.apiUrl + 'chat/support', method: 'POST' },
+            { name: 'Support Tickets GET', url: wpConfig.apiUrl + 'chat/support/admin' },
+            { name: 'Pusher Auth POST', url: wpConfig.apiUrl + 'pusher/auth', method: 'POST' }
         ];
         
         let results = '';
@@ -184,7 +193,7 @@ Admin URL: <?php echo admin_url(); ?>
                 const options = {
                     method: endpoint.method || 'GET',
                     headers: {
-                        'X-WP-Nonce': '<?php echo wp_create_nonce('wp_rest'); ?>'
+                        'X-WP-Nonce': wpConfig.nonce
                     }
                 };
                 
@@ -225,11 +234,11 @@ Admin URL: <?php echo admin_url(); ?>
             // Step 1: Send support message
             results += log('Step 1: Sending support message...', 'info').outerHTML;
             
-            const sendResponse = await fetch('<?php echo rest_url('surf-social/v1/chat/support'); ?>', {
+            const sendResponse = await fetch(wpConfig.apiUrl + 'chat/support', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-WP-Nonce': '<?php echo wp_create_nonce('wp_rest'); ?>'
+                    'X-WP-Nonce': wpConfig.nonce
                 },
                 body: JSON.stringify({
                     user_id: testUserId,
@@ -251,12 +260,12 @@ Admin URL: <?php echo admin_url(); ?>
             // Step 2: Check if message appears in admin tickets
             results += log('Step 2: Checking admin tickets...', 'info').outerHTML;
             
-            const ticketsResponse = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+            const ticketsResponse = await fetch(wpConfig.ajaxUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `action=surf_social_get_support_tickets&nonce=<?php echo wp_create_nonce('surf_social_stats'); ?>`
+                body: `action=surf_social_get_support_tickets&nonce=${wpConfig.statsNonce}`
             });
             
             if (ticketsResponse.ok) {
@@ -275,9 +284,9 @@ Admin URL: <?php echo admin_url(); ?>
             // Step 3: Check if message can be retrieved by user
             results += log('Step 3: Checking user message retrieval...', 'info').outerHTML;
             
-            const getResponse = await fetch(`<?php echo rest_url('surf-social/v1/chat/support'); ?>?user_id=${testUserId}`, {
+            const getResponse = await fetch(`${wpConfig.apiUrl}chat/support?user_id=${testUserId}`, {
                 headers: {
-                    'X-WP-Nonce': '<?php echo wp_create_nonce('wp_rest'); ?>'
+                    'X-WP-Nonce': wpConfig.nonce
                 }
             });
             
@@ -310,12 +319,12 @@ Admin URL: <?php echo admin_url(); ?>
         results += log('Checking Pusher configuration...', 'info').outerHTML;
         
         try {
-            const configResponse = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+            const configResponse = await fetch(wpConfig.ajaxUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'action=surf_social_debug_config&nonce=<?php echo wp_create_nonce('surf_social_debug'); ?>'
+                body: `action=surf_social_debug_config&nonce=${wpConfig.debugNonce}`
             });
             
             const configData = await configResponse.json();
@@ -350,12 +359,12 @@ Admin URL: <?php echo admin_url(); ?>
         
         liveLoggingInterval = setInterval(async () => {
             try {
-                const response = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                const response = await fetch(wpConfig.ajaxUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: 'action=surf_social_debug_live_logs&nonce=<?php echo wp_create_nonce('surf_social_debug'); ?>'
+                    body: `action=surf_social_debug_live_logs&nonce=${wpConfig.debugNonce}`
                 });
                 
                 const data = await response.json();
@@ -392,12 +401,12 @@ Admin URL: <?php echo admin_url(); ?>
         showResults('fix-results', '<div class="log-entry">Fixing database tables...</div>');
         
         try {
-            const response = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+            const response = await fetch(wpConfig.ajaxUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'action=surf_social_debug_fix_tables&nonce=<?php echo wp_create_nonce('surf_social_debug'); ?>'
+                body: `action=surf_social_debug_fix_tables&nonce=${wpConfig.debugNonce}`
             });
             
             const data = await response.json();
@@ -424,12 +433,12 @@ Admin URL: <?php echo admin_url(); ?>
         showResults('fix-results', '<div class="log-entry">Clearing support messages...</div>');
         
         try {
-            const response = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+            const response = await fetch(wpConfig.ajaxUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'action=surf_social_debug_clear_messages&nonce=<?php echo wp_create_nonce('surf_social_debug'); ?>'
+                body: `action=surf_social_debug_clear_messages&nonce=${wpConfig.debugNonce}`
             });
             
             const data = await response.json();
@@ -456,12 +465,12 @@ Admin URL: <?php echo admin_url(); ?>
         showResults('fix-results', '<div class="log-entry">Resetting plugin settings...</div>');
         
         try {
-            const response = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+            const response = await fetch(wpConfig.ajaxUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'action=surf_social_debug_reset_settings&nonce=<?php echo wp_create_nonce('surf_social_debug'); ?>'
+                body: `action=surf_social_debug_reset_settings&nonce=${wpConfig.debugNonce}`
             });
             
             const data = await response.json();

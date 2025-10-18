@@ -58,8 +58,29 @@
     // Get WordPress configuration from the page
     const config = window.surfSocial || {
         apiUrl: '/wp-json/surf-social/v1/',
-        nonce: 'test_nonce'
+        nonce: window.wpApiSettings ? window.wpApiSettings.nonce : 'test_nonce'
     };
+    
+    // If we don't have the proper nonce, show instructions
+    if (config.nonce === 'test_nonce') {
+        document.body.innerHTML = `
+            <div style="max-width: 800px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h1>⚠️ Authentication Required</h1>
+                <p>This test script needs to be run from within WordPress to get proper authentication tokens.</p>
+                <h3>How to fix this:</h3>
+                <ol>
+                    <li>Go to your WordPress admin dashboard</li>
+                    <li>Navigate to <strong>Settings → Surf Social</strong></li>
+                    <li>Open the browser developer tools (F12)</li>
+                    <li>Go to the <strong>Console</strong> tab</li>
+                    <li>Type: <code>console.log(window.surfSocial)</code> and press Enter</li>
+                    <li>Copy the nonce value from the output</li>
+                    <li>Replace 'test_nonce' in this file with the real nonce</li>
+                </ol>
+                <p><strong>Alternative:</strong> Use the debug script at <code>/debug-support-chat.php</code> instead.</p>
+            </div>
+        `;
+    }
     
     function log(message, type = 'info') {
         const timestamp = new Date().toLocaleTimeString();
