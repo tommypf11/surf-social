@@ -57,7 +57,22 @@
     flex-shrink: 0;
     position: relative;
     overflow: visible;
-    animation: subtleWave 4s infinite;
+}
+
+/* Improved ripple effect */
+#surf-social-widget .surf-chat-toggle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.1);
+    transform: translate(-50%, -50%);
+    animation: rippleEffect 4s infinite;
+    pointer-events: none;
+    z-index: -1;
 }
 
 .surf-chat-toggle:hover {
@@ -278,7 +293,7 @@
 #surf-social-widget .surf-chat-tab .surf-tab-badge {
     position: absolute !important;
     top: 3px !important;
-    right: -4px !important;
+    right: 6px !important;
     background: #000000 !important;
     color: white !important;
     border-radius: 50% !important;
@@ -329,16 +344,22 @@
     animation: none !important;
 }
 
-/* Wave effect animation for chat toggle */
-@keyframes subtleWave {
+/* Improved ripple effect animation */
+@keyframes rippleEffect {
     0% {
-        box-shadow: var(--surf-shadow);
+        width: 0;
+        height: 0;
+        opacity: 0.3;
     }
     50% {
-        box-shadow: var(--surf-shadow), 0 0 0 8px rgba(0, 0, 0, 0.05);
+        width: 60px;
+        height: 60px;
+        opacity: 0.1;
     }
     100% {
-        box-shadow: var(--surf-shadow), 0 0 0 0 rgba(0, 0, 0, 0);
+        width: 60px;
+        height: 60px;
+        opacity: 0;
     }
 }
 
@@ -501,6 +522,7 @@
     padding: 16px;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
     position: relative;
+    background: white !important;
 }
 
 /* Guest Registration Form */
@@ -610,7 +632,7 @@
 
 #surf-social-widget .surf-chat-send {
     background: white !important;
-    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid #000000 !important;
     color: black !important;
     cursor: pointer;
     padding: 8px;

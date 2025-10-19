@@ -53,8 +53,8 @@ if (!defined('ABSPATH')) {
             <div class="surf-normal-chat" id="surf-normal-chat" style="display: none;">
                 <input type="text" class="surf-chat-input" placeholder="Type a message..." id="surf-chat-input">
                 <button class="surf-chat-send" aria-label="Send message">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
             </div>
