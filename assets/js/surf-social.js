@@ -457,7 +457,7 @@
      */
     function startCursorTracking() {
         let lastSentPosition = { x: 0, y: 0, time: 0 };
-        const THROTTLE_INTERVAL = 500; // 500ms to reduce Pusher message usage
+        const THROTTLE_INTERVAL = 100; // 100ms for more real-time cursor tracking
         let batchTimeout = null;
         let pendingUpdates = [];
         
