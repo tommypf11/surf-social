@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Alignment Test</title>
+    <link rel="stylesheet" href="assets/css/surf-social.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 420px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+        }
+        .test-header {
+            padding: 16px;
+            background: #000;
+            color: white;
+            text-align: center;
+            font-weight: 600;
+        }
+        .test-messages {
+            padding: 16px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .test-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="test-title">Chat Alignment Test - Fixed Version</h1>
+    
+    <div class="test-container">
+        <div class="test-header">
+            Web Chat
+        </div>
+        <div class="test-messages">
+            <!-- Message with short name -->
+            <div class="surf-message">
+                <div class="surf-message-header">
+                    <div class="surf-message-avatar" style="background-color: #ff4444;">J</div>
+                    <div class="surf-message-name">jim</div>
+                </div>
+                <div class="surf-message-content">
+                    <div class="surf-message-bubble">hey</div>
+                </div>
+            </div>
+
+            <!-- Message with medium name -->
+            <div class="surf-message">
+                <div class="surf-message-header">
+                    <div class="surf-message-avatar" style="background-color: #ff4444;">W</div>
+                    <div class="surf-message-name">windows</div>
+                </div>
+                <div class="surf-message-content">
+                    <div class="surf-message-bubble">hi</div>
+                </div>
+            </div>
+
+            <!-- Message with long name -->
+            <div class="surf-message">
+                <div class="surf-message-header">
+                    <div class="surf-message-avatar" style="background-color: #00aaaa;">M</div>
+                    <div class="surf-message-name">Marketplace</div>
+                </div>
+                <div class="surf-message-content">
+                    <div class="surf-message-bubble">hello there</div>
+                </div>
+            </div>
+
+            <!-- Another message with short name -->
+            <div class="surf-message">
+                <div class="surf-message-header">
+                    <div class="surf-message-avatar" style="background-color: #44aa44;">A</div>
+                    <div class="surf-message-name">alex</div>
+                </div>
+                <div class="surf-message-content">
+                    <div class="surf-message-bubble">how are you?</div>
+                </div>
+            </div>
+
+            <!-- Message with very long name -->
+            <div class="surf-message">
+                <div class="surf-message-header">
+                    <div class="surf-message-avatar" style="background-color: #aa44aa;">C</div>
+                    <div class="surf-message-name">Christopher</div>
+                </div>
+                <div class="surf-message-content">
+                    <div class="surf-message-bubble">This is a longer message to test the alignment</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center; color: #666; font-size: 14px;">
+        <p>Notice how all avatars and message bubbles are now consistently aligned regardless of name length.</p>
+        <p>Names are truncated with ellipsis if they're too long, maintaining consistent spacing.</p>
+    </div>
+</body>
+</html>

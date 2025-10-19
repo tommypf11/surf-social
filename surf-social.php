@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.1.03
+Version: 1.1.05
 Author: Thomas Fraher
 */
 
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SURF_SOCIAL_VERSION', '1.1.03');
+define('SURF_SOCIAL_VERSION', '1.1.05');
 define('SURF_SOCIAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SURF_SOCIAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
