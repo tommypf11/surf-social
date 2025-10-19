@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SURF_SOCIAL_VERSION', '1.0.0');
+define('SURF_SOCIAL_VERSION', '1.1.03');
 define('SURF_SOCIAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SURF_SOCIAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 

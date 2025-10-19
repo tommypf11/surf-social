@@ -59,7 +59,7 @@
     overflow: visible;
 }
 
-/* Improved ripple effect - more noticeable */
+/* Improved ripple effect */
 #surf-social-widget .surf-chat-toggle::before {
     content: '';
     position: absolute;
@@ -68,27 +68,11 @@
     width: 0;
     height: 0;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.1);
     transform: translate(-50%, -50%);
     animation: rippleEffect 4s infinite;
     pointer-events: none;
     z-index: -1;
-}
-
-/* Second ripple for more visibility */
-#surf-social-widget .surf-chat-toggle::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.08);
-    transform: translate(-50%, -50%);
-    animation: rippleEffect2 4s infinite;
-    pointer-events: none;
-    z-index: -2;
 }
 
 .surf-chat-toggle:hover {
@@ -360,31 +344,12 @@
     animation: none !important;
 }
 
-/* Improved ripple effect animation - more noticeable */
+/* Improved ripple effect animation */
 @keyframes rippleEffect {
     0% {
         width: 0;
         height: 0;
-        opacity: 0.4;
-    }
-    50% {
-        width: 60px;
-        height: 60px;
-        opacity: 0.2;
-    }
-    100% {
-        width: 60px;
-        height: 60px;
-        opacity: 0;
-    }
-}
-
-/* Second ripple animation with slight delay */
-@keyframes rippleEffect2 {
-    0% {
-        width: 0;
-        height: 0;
-        opacity: 0.2;
+        opacity: 0.3;
     }
     50% {
         width: 60px;
