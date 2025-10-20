@@ -586,6 +586,11 @@
             return;
         }
         
+        // Only show cursors from the same page
+        if (data.page && data.page !== window.location.pathname) {
+            return;
+        }
+        
         let cursor = currentUsers.get(data.user.id);
         
         if (!cursor) {
@@ -607,6 +612,11 @@
     function handleCursorLeave(data) {
         if (data.user.id === config.currentUser.id) return;
         
+        // Only process cursor leave events from the same page
+        if (data.page && data.page !== window.location.pathname) {
+            return;
+        }
+        
         const cursor = currentUsers.get(data.user.id);
         if (cursor) {
             cursor.element.remove();
@@ -620,6 +630,11 @@
      */
     function handleUserJoined(data) {
         if (data.user.id === config.currentUser.id) return;
+        
+        // Only show users from the same page
+        if (data.page && data.page !== window.location.pathname) {
+            return;
+        }
         
         // Add user to current users if not already present
         if (!currentUsers.has(data.user.id)) {
@@ -645,6 +660,12 @@
      */
     function handleUserLeft(data) {
         if (data.user.id === config.currentUser.id) return;
+        
+        // Only process user left events from the same page
+        if (data.page && data.page !== window.location.pathname) {
+            return;
+        }
+        
         handleCursorLeave(data);
         
         // Update friend chat list if it's visible
