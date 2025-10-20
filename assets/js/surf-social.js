@@ -3901,16 +3901,28 @@
             // Create audio context for processing
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Determine supported MIME type
-            let mimeType = 'audio/webm;codecs=opus';
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
-                mimeType = 'audio/webm';
-                if (!MediaRecorder.isTypeSupported(mimeType)) {
-                    mimeType = 'audio/mp4';
-                    if (!MediaRecorder.isTypeSupported(mimeType)) {
-                        mimeType = '';
-                    }
+            // Determine supported MIME type with more options
+            let mimeType = '';
+            const supportedTypes = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/mp4;codecs=mp4a.40.2',
+                'audio/mp4',
+                'audio/wav',
+                'audio/ogg;codecs=opus',
+                'audio/ogg'
+            ];
+            
+            for (const type of supportedTypes) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    mimeType = type;
+                    console.log('Using audio format:', mimeType);
+                    break;
                 }
+            }
+            
+            if (!mimeType) {
+                console.warn('No supported audio format found, using default');
             }
             
             // Create media recorder
@@ -4060,7 +4072,7 @@
         
         try {
             // Create audio element and play
-            const audio = new Audio(data.audioData);
+            const audio = new Audio();
             audio.volume = 0.7; // Slightly lower volume for received audio
             audio.preload = 'auto';
             
@@ -4073,23 +4085,95 @@
             // Add error handling
             audio.onerror = (error) => {
                 console.error('Audio playback error:', error);
+                console.error('Audio error details:', {
+                    error: error,
+                    networkState: audio.networkState,
+                    readyState: audio.readyState,
+                    src: audio.src ? audio.src.substring(0, 100) + '...' : 'no src'
+                });
             };
             
-            // Play the audio
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    console.log('Audio playback started successfully');
-                }).catch(error => {
-                    console.error('Error playing voice audio:', error);
-                    // Try to play again after a short delay
-                    setTimeout(() => {
-                        audio.play().catch(e => console.error('Retry failed:', e));
-                    }, 100);
-                });
-            }
+            // Set the source and try to play
+            audio.src = data.audioData;
+            
+            // Wait for the audio to be ready
+            audio.addEventListener('canplay', () => {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('Audio playback started successfully');
+                    }).catch(error => {
+                        console.error('Error playing voice audio:', error);
+                        // Try to play again after a short delay
+                        setTimeout(() => {
+                            audio.play().catch(e => console.error('Retry failed:', e));
+                        }, 100);
+                    });
+                }
+            });
+            
+            // Fallback: try to play after a short delay even if canplay doesn't fire
+            setTimeout(() => {
+                if (audio.readyState >= 2) { // HAVE_CURRENT_DATA or higher
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.error('Fallback play failed:', error);
+                            // Try alternative approach with blob URL
+                            tryAlternativeAudioPlayback(data.audioData);
+                        });
+                    }
+                }
+            }, 200);
+            
         } catch (error) {
             console.error('Error creating audio element:', error);
+        }
+    }
+    
+    /**
+     * Try Alternative Audio Playback
+     */
+    function tryAlternativeAudioPlayback(audioData) {
+        try {
+            console.log('Trying alternative audio playback method');
+            
+            // Convert data URL to blob
+            const byteString = atob(audioData.split(',')[1]);
+            const mimeString = audioData.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            const blob = new Blob([ab], { type: mimeString });
+            
+            // Create blob URL
+            const blobUrl = URL.createObjectURL(blob);
+            
+            // Create new audio element with blob URL
+            const audio = new Audio(blobUrl);
+            audio.volume = 0.7;
+            
+            audio.oncanplay = () => {
+                console.log('Alternative audio can play');
+                audio.play().catch(e => console.error('Alternative play failed:', e));
+            };
+            
+            audio.onerror = (error) => {
+                console.error('Alternative audio error:', error);
+                URL.revokeObjectURL(blobUrl); // Clean up
+            };
+            
+            audio.onended = () => {
+                URL.revokeObjectURL(blobUrl); // Clean up
+            };
+            
+            // Set source to trigger loading
+            audio.load();
+            
+        } catch (error) {
+            console.error('Error in alternative audio playback:', error);
         }
     }
 
