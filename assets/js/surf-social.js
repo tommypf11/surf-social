@@ -60,7 +60,8 @@
     const noteModal = document.getElementById('surf-note-modal');
     const noteMessage = document.getElementById('surf-note-message');
     const noteCancel = document.getElementById('surf-note-cancel');
-    const noteSave = document.getElementById('surf-note-save');
+    const noteSend = document.getElementById('surf-note-send');
+    const noteUserInitial = document.getElementById('surf-note-user-initial');
     
     // Guest Registration Elements
     const guestRegistration = document.getElementById('surf-guest-registration');
@@ -227,8 +228,8 @@
             noteCancel.addEventListener('click', closeNoteModal);
         }
         
-        if (noteSave) {
-            noteSave.addEventListener('click', saveStickyNote);
+        if (noteSend) {
+            noteSend.addEventListener('click', saveStickyNote);
         }
         
         if (noteMessage) {
@@ -3216,6 +3217,11 @@
         noteCreationPosition = { x, y };
         
         if (noteModal) {
+            // Set user initial
+            if (noteUserInitial && config.currentUser.name) {
+                noteUserInitial.textContent = config.currentUser.name.charAt(0).toUpperCase();
+            }
+            
             noteModal.style.display = 'flex';
             if (noteMessage) {
                 noteMessage.value = '';
@@ -3265,6 +3271,9 @@
                 if (result.note) {
                     createStickyNoteElement(result.note);
                     closeNoteModal();
+                    
+                    // Broadcast note creation to other users
+                    broadcastStickyNoteEvent('note-created', result.note);
                 }
             } else {
                 console.error('Failed to save sticky note:', response.status);
@@ -3311,10 +3320,11 @@
         noteEl.style.backgroundColor = note.color;
         noteEl.dataset.noteId = note.id;
         
-        // Calculate time remaining
-        const expiresAt = new Date(note.expires_at);
+        // Calculate time remaining - ensure it's exactly 10 seconds from creation
+        const createdAt = new Date(note.created_at);
         const now = new Date();
-        const timeRemaining = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+        const elapsed = Math.floor((now - createdAt) / 1000);
+        const timeRemaining = Math.max(0, 10 - elapsed);
         
         noteEl.innerHTML = `
             <div class="surf-sticky-note-header">
@@ -3334,8 +3344,9 @@
         stickyNotesContainer.appendChild(noteEl);
         stickyNotes.set(note.id, noteEl);
         
-        // Start countdown timer
-        startNoteTimer(note.id, timeRemaining);
+        // Start countdown timer - always start with 10 seconds for new notes
+        const timerDuration = timeRemaining > 0 ? timeRemaining : 10;
+        startNoteTimer(note.id, timerDuration);
     }
     
     /**
@@ -3386,7 +3397,18 @@
         const timerEl = noteEl.querySelector('.surf-sticky-note-timer');
         if (!timerEl) return;
         
-        let timeLeft = timeRemaining;
+        // Clear any existing timer for this note
+        if (noteTimers.has(noteId)) {
+            clearInterval(noteTimers.get(noteId));
+        }
+        
+        let timeLeft = Math.max(0, timeRemaining);
+        timerEl.textContent = timeLeft;
+        
+        if (timeLeft <= 0) {
+            removeStickyNote(noteId);
+            return;
+        }
         
         const timer = setInterval(() => {
             timeLeft--;
@@ -3394,6 +3416,7 @@
             
             if (timeLeft <= 0) {
                 clearInterval(timer);
+                noteTimers.delete(noteId);
                 removeStickyNote(noteId);
             }
         }, 1000);
@@ -3433,12 +3456,41 @@
             });
             
             if (response.ok) {
+                const note = stickyNotes.get(noteId);
+                if (note) {
+                    const noteData = {
+                        id: noteId,
+                        page_url: window.location.pathname
+                    };
+                    broadcastStickyNoteEvent('note-deleted', noteData);
+                }
                 removeStickyNote(noteId);
             } else {
                 console.error('Failed to delete sticky note:', response.status);
             }
         } catch (error) {
             console.error('Failed to delete sticky note:', error);
+        }
+    }
+    
+    /**
+     * Broadcast Sticky Note Events
+     */
+    function broadcastStickyNoteEvent(eventType, note) {
+        const data = {
+            type: eventType,
+            note: note,
+            page: window.location.pathname
+        };
+        
+        if (pusher) {
+            try {
+                channel.trigger('client-' + eventType, data);
+            } catch (error) {
+                console.error('Failed to trigger sticky note event:', error);
+            }
+        } else if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify(data));
         }
     }
     

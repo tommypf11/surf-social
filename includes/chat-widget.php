@@ -100,11 +100,21 @@ if (!defined('ABSPATH')) {
     <!-- Note Creation Modal -->
     <div id="surf-note-modal" class="surf-note-modal" style="display: none;">
         <div class="surf-note-modal-content">
-            <h3>Add a Note</h3>
-            <textarea id="surf-note-message" placeholder="What's on your mind?"></textarea>
+            <div class="surf-note-input-container">
+                <div class="surf-note-user-avatar">
+                    <span id="surf-note-user-initial">A</span>
+                </div>
+                <div class="surf-note-input-wrapper">
+                    <textarea id="surf-note-message" placeholder="Add a comment"></textarea>
+                    <button id="surf-note-send" class="surf-note-send-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
             <div class="surf-note-actions">
                 <button id="surf-note-cancel">Cancel</button>
-                <button id="surf-note-save">Save Note</button>
             </div>
         </div>
     </div>
