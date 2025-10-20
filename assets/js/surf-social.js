@@ -3901,27 +3901,43 @@
             // Create audio context for processing
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
+            // Determine supported MIME type
+            let mimeType = 'audio/webm;codecs=opus';
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                mimeType = 'audio/webm';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'audio/mp4';
+                    if (!MediaRecorder.isTypeSupported(mimeType)) {
+                        mimeType = '';
+                    }
+                }
+            }
+            
             // Create media recorder
-            mediaRecorder = new MediaRecorder(audioStream, {
-                mimeType: 'audio/webm;codecs=opus'
-            });
+            const options = mimeType ? { mimeType } : {};
+            mediaRecorder = new MediaRecorder(audioStream, options);
             
             // Handle data available
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     audioChunks.push(event.data);
+                    // Broadcast immediately for real-time audio
+                    broadcastVoiceAudio(event.data);
                 }
             };
             
             // Handle recording stop
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                // Final broadcast with all chunks
+                if (audioChunks.length > 0) {
+                    const audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
+                    broadcastVoiceAudio(audioBlob);
+                }
                 audioChunks = [];
-                broadcastVoiceAudio(audioBlob);
             };
             
-            // Start recording
-            mediaRecorder.start(100); // Record in 100ms chunks
+            // Start recording with smaller chunks for real-time streaming
+            mediaRecorder.start(50); // Record in 50ms chunks for better real-time performance
             
             // Update UI
             isVoiceMode = true;
@@ -3972,6 +3988,12 @@
      * Broadcast Voice Audio
      */
     function broadcastVoiceAudio(audioBlob) {
+        // Check if blob is valid
+        if (!audioBlob || audioBlob.size === 0) {
+            console.warn('Invalid audio blob, skipping broadcast');
+            return;
+        }
+        
         const reader = new FileReader();
         reader.onload = () => {
             const audioData = {
@@ -3979,8 +4001,15 @@
                 user_id: config.currentUser.id,
                 user_name: config.currentUser.name,
                 page: window.location.pathname,
-                audioData: reader.result
+                audioData: reader.result,
+                timestamp: Date.now()
             };
+            
+            console.log('Broadcasting voice audio:', {
+                size: audioBlob.size,
+                type: audioBlob.type,
+                userId: config.currentUser.id
+            });
             
             if (pusher) {
                 try {
@@ -3990,7 +4019,12 @@
                 }
             } else if (websocket && websocket.readyState === WebSocket.OPEN) {
                 websocket.send(JSON.stringify(audioData));
+            } else {
+                console.warn('No real-time connection available for voice audio');
             }
+        };
+        reader.onerror = (error) => {
+            console.error('Error reading audio blob:', error);
         };
         reader.readAsDataURL(audioBlob);
     }
@@ -3999,18 +4033,64 @@
      * Handle Voice Audio
      */
     function handleVoiceAudio(data) {
+        console.log('Received voice audio:', {
+            userId: data.user_id,
+            userName: data.user_name,
+            page: data.page,
+            currentPage: window.location.pathname,
+            audioDataLength: data.audioData ? data.audioData.length : 0
+        });
+        
         // Only process events from the same page
-        if (data.page !== window.location.pathname) return;
+        if (data.page !== window.location.pathname) {
+            console.log('Voice audio from different page, ignoring');
+            return;
+        }
         
         // Don't play our own audio
-        if (data.user_id === config.currentUser.id) return;
+        if (data.user_id === config.currentUser.id) {
+            console.log('Ignoring own voice audio');
+            return;
+        }
         
-        // Create audio element and play
-        const audio = new Audio(data.audioData);
-        audio.volume = 0.7; // Slightly lower volume for received audio
-        audio.play().catch(error => {
-            console.error('Error playing voice audio:', error);
-        });
+        if (!data.audioData) {
+            console.error('No audio data received');
+            return;
+        }
+        
+        try {
+            // Create audio element and play
+            const audio = new Audio(data.audioData);
+            audio.volume = 0.7; // Slightly lower volume for received audio
+            audio.preload = 'auto';
+            
+            // Add event listeners for debugging
+            audio.onloadstart = () => console.log('Audio loading started');
+            audio.oncanplay = () => console.log('Audio can play');
+            audio.onplay = () => console.log('Audio started playing');
+            audio.onended = () => console.log('Audio playback ended');
+            
+            // Add error handling
+            audio.onerror = (error) => {
+                console.error('Audio playback error:', error);
+            };
+            
+            // Play the audio
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log('Audio playback started successfully');
+                }).catch(error => {
+                    console.error('Error playing voice audio:', error);
+                    // Try to play again after a short delay
+                    setTimeout(() => {
+                        audio.play().catch(e => console.error('Retry failed:', e));
+                    }, 100);
+                });
+            }
+        } catch (error) {
+            console.error('Error creating audio element:', error);
+        }
     }
 
     // Initialize when DOM is ready
