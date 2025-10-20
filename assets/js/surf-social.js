@@ -3901,12 +3901,12 @@
             // Create audio context for processing
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Use a simpler approach - try to use the most compatible format
+            // Use the most compatible format - prefer MP4 for better browser support
             let mimeType = '';
-            if (MediaRecorder.isTypeSupported('audio/webm')) {
-                mimeType = 'audio/webm';
-            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
                 mimeType = 'audio/mp4';
+            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                mimeType = 'audio/webm';
             } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
                 mimeType = 'audio/ogg';
             }
@@ -3936,8 +3936,8 @@
                 audioChunks = [];
             };
             
-            // Start recording with smaller chunks for real-time streaming
-            mediaRecorder.start(50); // Record in 50ms chunks for better real-time performance
+            // Start recording with larger chunks for better compatibility
+            mediaRecorder.start(1000); // Record in 1-second chunks for better format support
             
             // Update UI
             isVoiceMode = true;
@@ -4058,12 +4058,55 @@
             return;
         }
         
-        // Try Web Audio API approach first
-        playAudioWithWebAudio(data.audioData).catch(error => {
-            console.log('Web Audio API failed, trying HTML5 Audio:', error);
-            // Fallback to HTML5 Audio
-            playAudioWithHTML5(data.audioData);
-        });
+        // Use simple HTML5 Audio approach
+        playAudioSimple(data.audioData);
+    }
+    
+    /**
+     * Simple Audio Playback
+     */
+    function playAudioSimple(audioData) {
+        try {
+            console.log('Attempting simple audio playback');
+            
+            // Create audio element
+            const audio = new Audio();
+            audio.volume = 0.7;
+            audio.crossOrigin = 'anonymous';
+            
+            // Add event listeners
+            audio.onloadstart = () => console.log('Audio loading started');
+            audio.oncanplay = () => {
+                console.log('Audio can play, attempting to play');
+                audio.play().catch(e => console.error('Play failed:', e));
+            };
+            audio.onplay = () => console.log('Audio started playing');
+            audio.onended = () => console.log('Audio playback ended');
+            
+            audio.onerror = (error) => {
+                console.error('Simple audio error:', error);
+                console.error('Audio details:', {
+                    networkState: audio.networkState,
+                    readyState: audio.readyState,
+                    src: audio.src ? audio.src.substring(0, 50) + '...' : 'no src'
+                });
+            };
+            
+            // Set source and load
+            audio.src = audioData;
+            audio.load();
+            
+            // Test with a simple beep sound as fallback
+            setTimeout(() => {
+                if (audio.readyState === 0) {
+                    console.log('Audio not loading, trying test beep');
+                    testAudioPlayback();
+                }
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Error in simple audio playback:', error);
+        }
     }
     
     /**
@@ -4131,6 +4174,31 @@
             
         } catch (error) {
             console.error('HTML5 Audio creation error:', error);
+        }
+    }
+    
+    /**
+     * Test Audio Playback
+     */
+    function testAudioPlayback() {
+        try {
+            // Create a simple test tone using Web Audio API
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.1); // Play for 0.1 seconds
+            
+            console.log('Test beep played successfully');
+        } catch (error) {
+            console.error('Test audio failed:', error);
         }
     }
     
