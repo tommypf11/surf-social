@@ -44,6 +44,13 @@
     let drawings = new Map();
     let drawingTimers = new Map();
     
+    // Voice Chat State
+    let isVoiceMode = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let audioContext = null;
+    let audioStream = null;
+    
     // Message deduplication cache
     const messageCache = new Map();
     const MAX_CACHE_SIZE = 1000;
@@ -74,6 +81,9 @@
     // Drawing DOM Elements
     const drawToggle = document.getElementById('surf-draw-toggle');
     const drawingContainer = document.getElementById('surf-drawing-container');
+    
+    // Voice Chat DOM Elements
+    const voiceToggle = document.getElementById('surf-voice-toggle');
     
     // Guest Registration Elements
     const guestRegistration = document.getElementById('surf-guest-registration');
@@ -241,6 +251,11 @@
             drawToggle.addEventListener('click', toggleDrawMode);
         }
         
+        // Voice Chat Event Listeners
+        if (voiceToggle) {
+            voiceToggle.addEventListener('click', toggleVoiceMode);
+        }
+        
         
         if (noteSend) {
             noteSend.addEventListener('click', saveStickyNote);
@@ -382,6 +397,7 @@
             channel.bind('client-note-deleted', handleStickyNoteEvent);
             channel.bind('client-drawing-created', handleDrawingEvent);
             channel.bind('client-drawing-deleted', handleDrawingEvent);
+            channel.bind('client-voice-audio', handleVoiceAudio);
             channel.bind('client-new-message', handleNewMessage);
             channel.bind('client-user-joined', handleUserJoined);
             channel.bind('client-user-left', handleUserLeft);
@@ -409,6 +425,7 @@
             channel.bind('note-deleted', handleStickyNoteEvent);
             channel.bind('drawing-created', handleDrawingEvent);
             channel.bind('drawing-deleted', handleDrawingEvent);
+            channel.bind('voice-audio', handleVoiceAudio);
         channel.bind('new-message', handleNewMessage);
         channel.bind('user-joined', handleUserJoined);
         channel.bind('user-left', handleUserLeft);
@@ -492,6 +509,9 @@
             case 'drawing-created':
             case 'drawing-deleted':
                 handleDrawingEvent(data);
+                break;
+            case 'voice-audio':
+                handleVoiceAudio(data);
                 break;
             case 'new-message':
                 handleNewMessage(data);
@@ -3851,6 +3871,146 @@
         // Store drawing and start timer
         drawings.set(drawingData.id, drawingData);
         startDrawingTimer(drawingData.id);
+    }
+    
+    /**
+     * Toggle Voice Mode
+     */
+    async function toggleVoiceMode() {
+        if (!isVoiceMode) {
+            await startVoiceChat();
+        } else {
+            stopVoiceChat();
+        }
+    }
+    
+    /**
+     * Start Voice Chat
+     */
+    async function startVoiceChat() {
+        try {
+            // Request microphone access
+            audioStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                } 
+            });
+            
+            // Create audio context for processing
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create media recorder
+            mediaRecorder = new MediaRecorder(audioStream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
+            
+            // Handle data available
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+            
+            // Handle recording stop
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                audioChunks = [];
+                broadcastVoiceAudio(audioBlob);
+            };
+            
+            // Start recording
+            mediaRecorder.start(100); // Record in 100ms chunks
+            
+            // Update UI
+            isVoiceMode = true;
+            if (voiceToggle) {
+                voiceToggle.classList.add('active');
+            }
+            
+            // Disable other modes
+            if (isNotesMode) {
+                toggleNotesMode();
+            }
+            if (isDrawMode) {
+                toggleDrawMode();
+            }
+            
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            alert('Microphone access denied. Please allow microphone access to use voice chat.');
+        }
+    }
+    
+    /**
+     * Stop Voice Chat
+     */
+    function stopVoiceChat() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+        }
+        
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            audioStream = null;
+        }
+        
+        if (audioContext) {
+            audioContext.close();
+            audioContext = null;
+        }
+        
+        // Update UI
+        isVoiceMode = false;
+        if (voiceToggle) {
+            voiceToggle.classList.remove('active');
+        }
+    }
+    
+    /**
+     * Broadcast Voice Audio
+     */
+    function broadcastVoiceAudio(audioBlob) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const audioData = {
+                type: 'voice-audio',
+                user_id: config.currentUser.id,
+                user_name: config.currentUser.name,
+                page: window.location.pathname,
+                audioData: reader.result
+            };
+            
+            if (pusher) {
+                try {
+                    channel.trigger('client-voice-audio', audioData);
+                } catch (error) {
+                    console.error('Failed to trigger voice audio:', error);
+                }
+            } else if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify(audioData));
+            }
+        };
+        reader.readAsDataURL(audioBlob);
+    }
+    
+    /**
+     * Handle Voice Audio
+     */
+    function handleVoiceAudio(data) {
+        // Only process events from the same page
+        if (data.page !== window.location.pathname) return;
+        
+        // Don't play our own audio
+        if (data.user_id === config.currentUser.id) return;
+        
+        // Create audio element and play
+        const audio = new Audio(data.audioData);
+        audio.volume = 0.7; // Slightly lower volume for received audio
+        audio.play().catch(error => {
+            console.error('Error playing voice audio:', error);
+        });
     }
 
     // Initialize when DOM is ready

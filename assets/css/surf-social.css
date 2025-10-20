@@ -119,6 +119,59 @@
     fill: #FF6B6B;
 }
 
+/* Voice Chat Toggle Button */
+#surf-social-widget .surf-voice-toggle {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: white !important;
+    color: black !important;
+    border: none !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--surf-shadow);
+    transition: var(--surf-transition);
+    backdrop-filter: var(--surf-backdrop-blur);
+    flex-shrink: 0;
+    position: relative;
+    overflow: visible;
+}
+
+.surf-voice-toggle:hover {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.surf-voice-toggle:active {
+    transform: scale(0.95);
+}
+
+.surf-voice-toggle.active {
+    background: #10B981 !important;
+    color: white !important;
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+    animation: voicePulse 2s infinite;
+}
+
+.surf-voice-toggle svg {
+    color: #10B981;
+    fill: #10B981;
+}
+
+@keyframes voicePulse {
+    0% {
+        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+    }
+    50% {
+        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.6);
+    }
+    100% {
+        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+    }
+}
+
 /* Chat Toggle Button */
 #surf-social-widget .surf-chat-toggle {
     width: 60px;
@@ -1075,6 +1128,16 @@
     }
     
     .surf-draw-toggle svg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .surf-voice-toggle {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .surf-voice-toggle svg {
         width: 20px;
         height: 20px;
     }
