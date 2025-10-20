@@ -74,12 +74,25 @@ if (!defined('ABSPATH')) {
             <!-- Avatar chips will be dynamically added here -->
         </div>
         
-        <!-- Notes Toggle Button -->
-        <button class="surf-notes-toggle" id="surf-notes-toggle" aria-label="Toggle notes mode">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-        </button>
+        <!-- Toolbar -->
+        <div class="surf-toolbar" id="surf-toolbar">
+            <!-- Notes Toggle Button -->
+            <button class="surf-notes-toggle" id="surf-notes-toggle" aria-label="Toggle notes mode">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </button>
+            
+            <!-- Draw Toggle Button -->
+            <button class="surf-draw-toggle" id="surf-draw-toggle" aria-label="Toggle draw mode">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                    <path d="M2 2l7.586 7.586"></path>
+                    <circle cx="11" cy="11" r="2"></circle>
+                </svg>
+            </button>
+        </div>
         
         <!-- Chat Toggle Button -->
         <button class="surf-chat-toggle" id="surf-chat-toggle" aria-label="Open chat">
@@ -91,6 +104,11 @@ if (!defined('ABSPATH')) {
     <!-- Sticky Notes Container -->
     <div id="surf-sticky-notes-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999997;">
         <!-- Notes will be dynamically added here -->
+    </div>
+    
+    <!-- Drawing Canvas Container -->
+    <div id="surf-drawing-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999996;">
+        <canvas id="surf-drawing-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
     </div>
     
     <!-- Note Creation Modal -->

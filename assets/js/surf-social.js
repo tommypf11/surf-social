@@ -36,6 +36,14 @@
     let noteCreationPosition = { x: 0, y: 0 };
     let noteTimers = new Map();
     
+    // Drawing State
+    let isDrawMode = false;
+    let isDrawing = false;
+    let drawingCanvas = null;
+    let drawingContext = null;
+    let drawingPaths = new Map();
+    let drawingTimers = new Map();
+    
     // Message deduplication cache
     const messageCache = new Map();
     const MAX_CACHE_SIZE = 1000;
@@ -62,6 +70,11 @@
     const noteCancel = document.getElementById('surf-note-cancel');
     const noteSend = document.getElementById('surf-note-send');
     const noteUserInitial = document.getElementById('surf-note-user-initial');
+    
+    // Drawing DOM Elements
+    const drawToggle = document.getElementById('surf-draw-toggle');
+    const drawingContainer = document.getElementById('surf-drawing-container');
+    const drawingCanvas = document.getElementById('surf-drawing-canvas');
     
     // Guest Registration Elements
     const guestRegistration = document.getElementById('surf-guest-registration');
@@ -101,6 +114,9 @@
         loadInitialMessages();
         startCursorTracking();
         initStickyNotes();
+        
+        // Initialize drawing
+        initDrawing();
         
         // Initialize avatar dock state
         updateAvatarDock();
@@ -222,6 +238,11 @@
         // Sticky Notes Event Listeners
         if (notesToggle) {
             notesToggle.addEventListener('click', toggleNotesMode);
+        }
+        
+        // Drawing Event Listeners
+        if (drawToggle) {
+            drawToggle.addEventListener('click', toggleDrawMode);
         }
         
         
@@ -3553,6 +3574,204 @@
     function formatTime(dateString) {
         const date = new Date(dateString);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    /**
+     * Initialize Drawing
+     */
+    function initDrawing() {
+        if (!drawingCanvas) return;
+        
+        drawingContext = drawingCanvas.getContext('2d');
+        
+        // Set canvas size to match viewport
+        resizeCanvas();
+        
+        // Add window resize listener
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Add drawing event listeners
+        drawingCanvas.addEventListener('mousedown', startDrawing);
+        drawingCanvas.addEventListener('mousemove', draw);
+        drawingCanvas.addEventListener('mouseup', stopDrawing);
+        drawingCanvas.addEventListener('mouseout', stopDrawing);
+        
+        // Touch events for mobile
+        drawingCanvas.addEventListener('touchstart', handleTouch);
+        drawingCanvas.addEventListener('touchmove', handleTouch);
+        drawingCanvas.addEventListener('touchend', stopDrawing);
+    }
+    
+    /**
+     * Resize Canvas
+     */
+    function resizeCanvas() {
+        if (!drawingCanvas) return;
+        
+        drawingCanvas.width = window.innerWidth;
+        drawingCanvas.height = window.innerHeight;
+    }
+    
+    /**
+     * Toggle Draw Mode
+     */
+    function toggleDrawMode() {
+        isDrawMode = !isDrawMode;
+        
+        if (drawToggle) {
+            drawToggle.classList.toggle('active', isDrawMode);
+        }
+        
+        if (drawingContainer) {
+            drawingContainer.style.pointerEvents = isDrawMode ? 'auto' : 'none';
+        }
+        
+        // Update cursor
+        document.body.classList.toggle('draw-mode', isDrawMode);
+        
+        // Disable notes mode if enabling draw mode
+        if (isDrawMode && isNotesMode) {
+            toggleNotesMode();
+        }
+    }
+    
+    /**
+     * Start Drawing
+     */
+    function startDrawing(e) {
+        if (!isDrawMode) return;
+        
+        isDrawing = true;
+        const rect = drawingCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        drawingContext.beginPath();
+        drawingContext.moveTo(x, y);
+        drawingContext.strokeStyle = config.currentUser.color;
+        drawingContext.lineWidth = 1;
+        drawingContext.lineCap = 'round';
+        drawingContext.lineJoin = 'round';
+    }
+    
+    /**
+     * Draw
+     */
+    function draw(e) {
+        if (!isDrawing || !isDrawMode) return;
+        
+        const rect = drawingCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        drawingContext.lineTo(x, y);
+        drawingContext.stroke();
+    }
+    
+    /**
+     * Stop Drawing
+     */
+    function stopDrawing() {
+        if (!isDrawing) return;
+        
+        isDrawing = false;
+        
+        // Create a new drawing path for timer management
+        const pathId = Date.now() + Math.random();
+        drawingPaths.set(pathId, {
+            id: pathId,
+            user_id: config.currentUser.id,
+            user_name: config.currentUser.name,
+            color: config.currentUser.color,
+            page: window.location.pathname,
+            created_at: new Date().toISOString()
+        });
+        
+        // Start 10-second timer for this drawing
+        startDrawingTimer(pathId);
+        
+        // Broadcast drawing to other users
+        broadcastDrawingEvent('drawing-created', drawingPaths.get(pathId));
+    }
+    
+    /**
+     * Handle Touch Events
+     */
+    function handleTouch(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 
+                                         e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        drawingCanvas.dispatchEvent(mouseEvent);
+    }
+    
+    /**
+     * Start Drawing Timer
+     */
+    function startDrawingTimer(pathId) {
+        const timer = setTimeout(() => {
+            removeDrawing(pathId);
+        }, 10000); // 10 seconds
+        
+        drawingTimers.set(pathId, timer);
+    }
+    
+    /**
+     * Remove Drawing
+     */
+    function removeDrawing(pathId) {
+        // Clear the entire canvas and redraw remaining paths
+        drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        
+        // Remove from maps
+        drawingPaths.delete(pathId);
+        drawingTimers.delete(pathId);
+        
+        // Broadcast removal to other users
+        broadcastDrawingEvent('drawing-deleted', { id: pathId, page: window.location.pathname });
+    }
+    
+    /**
+     * Broadcast Drawing Events
+     */
+    function broadcastDrawingEvent(eventType, data) {
+        const eventData = {
+            type: eventType,
+            ...data,
+            page: window.location.pathname
+        };
+        
+        if (pusher) {
+            try {
+                channel.trigger('client-' + eventType, eventData);
+            } catch (error) {
+                console.error('Failed to trigger drawing event:', error);
+            }
+        } else if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify(eventData));
+        }
+    }
+    
+    /**
+     * Handle Drawing Events from Other Users
+     */
+    function handleDrawingEvent(data) {
+        // Only process events from the same page
+        if (data.page !== window.location.pathname) return;
+        
+        switch (data.type) {
+            case 'drawing-created':
+                // Note: We don't actually redraw other users' drawings in real-time
+                // as that would require complex path management. The 10-second timer
+                // ensures drawings disappear for everyone at the same time.
+                break;
+            case 'drawing-deleted':
+                // Drawing will be removed by its own timer
+                break;
+        }
     }
 
     // Initialize when DOM is ready

@@ -39,6 +39,19 @@
     z-index: 1000000;
 }
 
+/* Toolbar */
+.surf-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: var(--surf-backdrop-blur);
+    border-radius: 22.5px;
+    padding: 6px;
+    box-shadow: var(--surf-shadow);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 /* Notes Toggle Button */
 #surf-social-widget .surf-notes-toggle {
     width: 45px;
@@ -72,6 +85,51 @@
     background: #007AFF !important;
     color: white !important;
     box-shadow: 0 8px 32px rgba(0, 122, 255, 0.3);
+}
+
+.surf-notes-toggle svg {
+    color: #007AFF;
+    fill: #007AFF;
+}
+
+/* Draw Toggle Button */
+#surf-social-widget .surf-draw-toggle {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: white !important;
+    color: black !important;
+    border: none !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--surf-shadow);
+    transition: var(--surf-transition);
+    backdrop-filter: var(--surf-backdrop-blur);
+    flex-shrink: 0;
+    position: relative;
+    overflow: visible;
+}
+
+.surf-draw-toggle:hover {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.surf-draw-toggle:active {
+    transform: scale(0.95);
+}
+
+.surf-draw-toggle.active {
+    background: #FF6B6B !important;
+    color: white !important;
+    box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
+}
+
+.surf-draw-toggle svg {
+    color: #FF6B6B;
+    fill: #FF6B6B;
 }
 
 /* Chat Toggle Button */
@@ -1024,6 +1082,22 @@
         height: 20px;
     }
     
+    .surf-toolbar {
+        gap: 6px;
+        padding: 4px;
+        border-radius: 17.5px;
+    }
+    
+    .surf-draw-toggle {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .surf-draw-toggle svg {
+        width: 20px;
+        height: 20px;
+    }
+    
     /* Removed expand button responsive styles */
     
     .surf-chat-toggle {
@@ -1748,6 +1822,15 @@ body.notes-mode {
 }
 
 body.notes-mode * {
+    cursor: crosshair !important;
+}
+
+/* Draw mode cursor */
+body.draw-mode {
+    cursor: crosshair !important;
+}
+
+body.draw-mode * {
     cursor: crosshair !important;
 }
 
