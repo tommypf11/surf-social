@@ -4,7 +4,7 @@ Plugin Name: Surf Social
 Plugin URI: https://github.com/tommypf11/surf-social
 GitHub Plugin URI: https://github.com/tommypf11/surf-social
 Description: Your plugin description
-Version: 1.1.08
+Version: 1.1.09
 Author: Thomas Fraher
 */
 
@@ -107,6 +107,33 @@ class Surf_Social {
                 PRIMARY KEY  (id),
                 UNIQUE KEY user_id (user_id),
                 KEY email (email),
+                KEY created_at (created_at)
+            ) $charset_collate;";
+            dbDelta($sql);
+        }
+        
+        // Check if sticky notes table exists
+        $sticky_notes_table = $wpdb->prefix . 'surf_social_sticky_notes';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$sticky_notes_table'");
+        
+        if (!$table_exists) {
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            
+            $sql = "CREATE TABLE IF NOT EXISTS $sticky_notes_table (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                user_id varchar(100) NOT NULL,
+                user_name varchar(100) NOT NULL,
+                page_url varchar(500) NOT NULL,
+                x_position decimal(10,2) NOT NULL,
+                y_position decimal(10,2) NOT NULL,
+                message text NOT NULL,
+                color varchar(7) DEFAULT '#FFD93D',
+                expires_at datetime NOT NULL,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                KEY page_url (page_url),
+                KEY user_id (user_id),
+                KEY expires_at (expires_at),
                 KEY created_at (created_at)
             ) $charset_collate;";
             dbDelta($sql);
@@ -418,6 +445,165 @@ class Surf_Social {
             'callback' => array($this, 'register_guest'),
             'permission_callback' => '__return_true'
         ));
+        
+        // Sticky notes endpoints
+        register_rest_route('surf-social/v1', '/sticky-notes', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_sticky_notes'),
+            'permission_callback' => '__return_true'
+        ));
+        
+        register_rest_route('surf-social/v1', '/sticky-notes', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'create_sticky_note'),
+            'permission_callback' => '__return_true'
+        ));
+        
+        register_rest_route('surf-social/v1', '/sticky-notes/(?P<id>\d+)', array(
+            'methods' => 'DELETE',
+            'callback' => array($this, 'delete_sticky_note'),
+            'permission_callback' => '__return_true'
+        ));
+    }
+    
+    /**
+     * Get sticky notes for current page
+     */
+    public function get_sticky_notes($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_sticky_notes';
+        
+        $page_url = $request->get_param('page_url') ?: $_SERVER['REQUEST_URI'];
+        
+        // Clean up expired notes first
+        $wpdb->query($wpdb->prepare(
+            "DELETE FROM $table_name WHERE expires_at < %s",
+            current_time('mysql')
+        ));
+        
+        $notes = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $table_name WHERE page_url = %s ORDER BY created_at DESC",
+                $page_url
+            ),
+            ARRAY_A
+        );
+        
+        return new WP_REST_Response(array('notes' => $notes), 200);
+    }
+    
+    /**
+     * Create sticky note
+     */
+    public function create_sticky_note($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_sticky_notes';
+        
+        $user_id = $request->get_param('user_id');
+        $user_name = $request->get_param('user_name');
+        $page_url = $request->get_param('page_url');
+        $x_position = $request->get_param('x_position');
+        $y_position = $request->get_param('y_position');
+        $message = $request->get_param('message');
+        $color = $request->get_param('color') ?: '#FFD93D';
+        
+        if (empty($message) || empty($user_id) || empty($user_name) || empty($page_url)) {
+            return new WP_Error('invalid_data', 'Missing required parameters', array('status' => 400));
+        }
+        
+        // Set expiration to 10 seconds from now
+        $expires_at = date('Y-m-d H:i:s', time() + 10);
+        
+        $result = $wpdb->insert(
+            $table_name,
+            array(
+                'user_id' => sanitize_text_field($user_id),
+                'user_name' => sanitize_text_field($user_name),
+                'page_url' => sanitize_text_field($page_url),
+                'x_position' => floatval($x_position),
+                'y_position' => floatval($y_position),
+                'message' => sanitize_textarea_field($message),
+                'color' => sanitize_hex_color($color),
+                'expires_at' => $expires_at
+            ),
+            array('%s', '%s', '%s', '%f', '%f', '%s', '%s', '%s')
+        );
+        
+        if ($result) {
+            $note_id = $wpdb->insert_id;
+            $note = $wpdb->get_row(
+                $wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $note_id),
+                ARRAY_A
+            );
+            
+            // Broadcast note creation
+            $this->broadcast_sticky_note_event('note-created', $note);
+            
+            return new WP_REST_Response(array(
+                'success' => true,
+                'note' => $note
+            ), 201);
+        }
+        
+        return new WP_Error('save_failed', 'Failed to create sticky note', array('status' => 500));
+    }
+    
+    /**
+     * Delete sticky note
+     */
+    public function delete_sticky_note($request) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'surf_social_sticky_notes';
+        
+        $note_id = $request->get_param('id');
+        $user_id = $request->get_param('user_id');
+        
+        if (empty($note_id)) {
+            return new WP_Error('invalid_data', 'Note ID is required', array('status' => 400));
+        }
+        
+        // Get note before deletion for broadcasting
+        $note = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $note_id),
+            ARRAY_A
+        );
+        
+        if (!$note) {
+            return new WP_Error('not_found', 'Note not found', array('status' => 404));
+        }
+        
+        // Check if user can delete this note (own note or admin)
+        if ($note['user_id'] !== $user_id && !current_user_can('manage_options')) {
+            return new WP_Error('forbidden', 'Not authorized to delete this note', array('status' => 403));
+        }
+        
+        $result = $wpdb->delete(
+            $table_name,
+            array('id' => $note_id),
+            array('%d')
+        );
+        
+        if ($result) {
+            // Broadcast note deletion
+            $this->broadcast_sticky_note_event('note-deleted', $note);
+            
+            return new WP_REST_Response(array('success' => true), 200);
+        }
+        
+        return new WP_Error('delete_failed', 'Failed to delete sticky note', array('status' => 500));
+    }
+    
+    /**
+     * Broadcast sticky note events
+     */
+    private function broadcast_sticky_note_event($event_type, $note) {
+        $data = array(
+            'type' => $event_type,
+            'note' => $note,
+            'page' => $note['page_url']
+        );
+        
+        $this->broadcast_realtime_event($event_type, $data);
     }
     
     /**

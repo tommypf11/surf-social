@@ -74,11 +74,39 @@ if (!defined('ABSPATH')) {
             <!-- Avatar chips will be dynamically added here -->
         </div>
         
+        <!-- Notes Toggle Button -->
+        <button class="surf-notes-toggle" id="surf-notes-toggle" aria-label="Toggle notes mode">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10,9 9,9 8,9"></polyline>
+            </svg>
+        </button>
+        
         <!-- Chat Toggle Button -->
         <button class="surf-chat-toggle" id="surf-chat-toggle" aria-label="Open chat">
             <img src="<?php echo SURF_SOCIAL_PLUGIN_URL; ?>assets/css/surficon.svg" width="32" height="32" alt="Chat Icon" />
             <span class="surf-unread-badge" id="surf-unread-badge" style="display: none;">0</span>
         </button>
+    </div>
+    
+    <!-- Sticky Notes Container -->
+    <div id="surf-sticky-notes-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999997;">
+        <!-- Notes will be dynamically added here -->
+    </div>
+    
+    <!-- Note Creation Modal -->
+    <div id="surf-note-modal" class="surf-note-modal" style="display: none;">
+        <div class="surf-note-modal-content">
+            <h3>Add a Note</h3>
+            <textarea id="surf-note-message" placeholder="What's on your mind?"></textarea>
+            <div class="surf-note-actions">
+                <button id="surf-note-cancel">Cancel</button>
+                <button id="surf-note-save">Save Note</button>
+            </div>
+        </div>
     </div>
     
     <!-- Branding -->

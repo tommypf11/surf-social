@@ -30,6 +30,12 @@
     let hasSetGuestEmail = false; // Track if guest has set their email
     let hasSetGuestInfo = false; // Track if guest has completed registration
     
+    // Sticky Notes State
+    let stickyNotes = new Map();
+    let isNotesMode = false;
+    let noteCreationPosition = { x: 0, y: 0 };
+    let noteTimers = new Map();
+    
     // Message deduplication cache
     const messageCache = new Map();
     const MAX_CACHE_SIZE = 1000;
@@ -47,6 +53,14 @@
     const avatarDock = document.getElementById('surf-avatar-dock');
     const cursorsContainer = document.getElementById('surf-cursors-container');
     const unreadBadge = document.getElementById('surf-unread-badge');
+    
+    // Sticky Notes DOM Elements
+    const notesToggle = document.getElementById('surf-notes-toggle');
+    const stickyNotesContainer = document.getElementById('surf-sticky-notes-container');
+    const noteModal = document.getElementById('surf-note-modal');
+    const noteMessage = document.getElementById('surf-note-message');
+    const noteCancel = document.getElementById('surf-note-cancel');
+    const noteSave = document.getElementById('surf-note-save');
     
     // Guest Registration Elements
     const guestRegistration = document.getElementById('surf-guest-registration');
@@ -85,6 +99,7 @@
         initRealtime();
         loadInitialMessages();
         startCursorTracking();
+        initStickyNotes();
         
         // Initialize avatar dock state
         updateAvatarDock();
@@ -203,6 +218,33 @@
             });
         }
         
+        // Sticky Notes Event Listeners
+        if (notesToggle) {
+            notesToggle.addEventListener('click', toggleNotesMode);
+        }
+        
+        if (noteCancel) {
+            noteCancel.addEventListener('click', closeNoteModal);
+        }
+        
+        if (noteSave) {
+            noteSave.addEventListener('click', saveStickyNote);
+        }
+        
+        if (noteMessage) {
+            noteMessage.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    saveStickyNote();
+                }
+            });
+        }
+        
+        // Page click listener for note creation
+        document.addEventListener('click', handlePageClick);
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', handleKeyboardShortcuts);
+        
         // Tab switching
         chatTabs.forEach(tab => {
             tab.addEventListener('click', (e) => {
@@ -306,6 +348,8 @@
             // Client events binding after successful subscription
             channel.bind('client-cursor-move', handleCursorMove);
             channel.bind('client-cursor-leave', handleCursorLeave);
+            channel.bind('client-note-created', handleStickyNoteEvent);
+            channel.bind('client-note-deleted', handleStickyNoteEvent);
             channel.bind('client-new-message', handleNewMessage);
             channel.bind('client-user-joined', handleUserJoined);
             channel.bind('client-user-left', handleUserLeft);
@@ -327,8 +371,10 @@
         });
         
         // Bind to server events (for future server-side broadcasting)
-        channel.bind('cursor-move', handleCursorMove);
-        channel.bind('cursor-leave', handleCursorLeave);
+            channel.bind('cursor-move', handleCursorMove);
+            channel.bind('cursor-leave', handleCursorLeave);
+            channel.bind('note-created', handleStickyNoteEvent);
+            channel.bind('note-deleted', handleStickyNoteEvent);
         channel.bind('new-message', handleNewMessage);
         channel.bind('user-joined', handleUserJoined);
         channel.bind('user-left', handleUserLeft);
@@ -404,6 +450,10 @@
                 break;
             case 'cursor-leave':
                 handleCursorLeave(data);
+                break;
+            case 'note-created':
+            case 'note-deleted':
+                handleStickyNoteEvent(data);
                 break;
             case 'new-message':
                 handleNewMessage(data);
@@ -3098,6 +3148,344 @@
         return date.toLocaleDateString();
     }
     
+    /**
+     * Initialize Sticky Notes
+     */
+    function initStickyNotes() {
+        // Load existing notes for current page
+        loadStickyNotes();
+    }
+    
+    /**
+     * Toggle Notes Mode
+     */
+    function toggleNotesMode() {
+        isNotesMode = !isNotesMode;
+        
+        if (isNotesMode) {
+            notesToggle.classList.add('active');
+            document.body.classList.add('notes-mode');
+            console.log('Notes mode enabled - click anywhere to create a note');
+        } else {
+            notesToggle.classList.remove('active');
+            document.body.classList.remove('notes-mode');
+            console.log('Notes mode disabled');
+        }
+    }
+    
+    /**
+     * Handle Page Click for Note Creation
+     */
+    function handlePageClick(e) {
+        if (!isNotesMode) return;
+        
+        // Don't create notes if clicking on UI elements
+        if (isClickOnUI(e.target)) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        showNoteCreationModal(e.clientX, e.clientY);
+    }
+    
+    /**
+     * Check if click is on UI elements
+     */
+    function isClickOnUI(target) {
+        const uiSelectors = [
+            '#surf-social-widget',
+            '#surf-chat-drawer',
+            '#surf-chat-toggle',
+            '#surf-notes-toggle',
+            '#surf-avatar-dock',
+            '#surf-sticky-notes-container',
+            '.surf-sticky-note',
+            '#surf-note-modal'
+        ];
+        
+        return uiSelectors.some(selector => {
+            const element = document.querySelector(selector);
+            return element && element.contains(target);
+        });
+    }
+    
+    /**
+     * Show Note Creation Modal
+     */
+    function showNoteCreationModal(x, y) {
+        noteCreationPosition = { x, y };
+        
+        if (noteModal) {
+            noteModal.style.display = 'flex';
+            if (noteMessage) {
+                noteMessage.value = '';
+                noteMessage.focus();
+            }
+        }
+    }
+    
+    /**
+     * Close Note Modal
+     */
+    function closeNoteModal() {
+        if (noteModal) {
+            noteModal.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Save Sticky Note
+     */
+    async function saveStickyNote() {
+        if (!noteMessage || !noteMessage.value.trim()) return;
+        
+        const message = noteMessage.value.trim();
+        const data = {
+            user_id: config.currentUser.id,
+            user_name: config.currentUser.name,
+            page_url: window.location.pathname,
+            x_position: noteCreationPosition.x,
+            y_position: noteCreationPosition.y,
+            message: message,
+            color: config.currentUser.color
+        };
+        
+        try {
+            const response = await fetch(`${config.apiUrl}sticky-notes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.note) {
+                    createStickyNoteElement(result.note);
+                    closeNoteModal();
+                }
+            } else {
+                console.error('Failed to save sticky note:', response.status);
+            }
+        } catch (error) {
+            console.error('Failed to save sticky note:', error);
+        }
+    }
+    
+    /**
+     * Load Sticky Notes for Current Page
+     */
+    async function loadStickyNotes() {
+        try {
+            const response = await fetch(`${config.apiUrl}sticky-notes?page_url=${encodeURIComponent(window.location.pathname)}`, {
+                headers: {
+                    'X-WP-Nonce': config.nonce
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.notes) {
+                    data.notes.forEach(note => {
+                        createStickyNoteElement(note);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load sticky notes:', error);
+        }
+    }
+    
+    /**
+     * Create Sticky Note Element
+     */
+    function createStickyNoteElement(note) {
+        if (!stickyNotesContainer) return;
+        
+        const noteEl = document.createElement('div');
+        noteEl.className = 'surf-sticky-note';
+        noteEl.style.left = note.x_position + 'px';
+        noteEl.style.top = note.y_position + 'px';
+        noteEl.style.backgroundColor = note.color;
+        noteEl.dataset.noteId = note.id;
+        
+        // Calculate time remaining
+        const expiresAt = new Date(note.expires_at);
+        const now = new Date();
+        const timeRemaining = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+        
+        noteEl.innerHTML = `
+            <div class="surf-sticky-note-header">
+                <span>${escapeHtml(note.user_name)}</span>
+                <span>${formatTime(note.created_at)}</span>
+            </div>
+            <div class="surf-sticky-note-content">${escapeHtml(note.message)}</div>
+            <div class="surf-sticky-note-actions">
+                <button onclick="deleteStickyNote(${note.id})">Delete</button>
+            </div>
+            <div class="surf-sticky-note-timer">${timeRemaining}</div>
+        `;
+        
+        // Make note draggable
+        makeDraggable(noteEl);
+        
+        stickyNotesContainer.appendChild(noteEl);
+        stickyNotes.set(note.id, noteEl);
+        
+        // Start countdown timer
+        startNoteTimer(note.id, timeRemaining);
+    }
+    
+    /**
+     * Make Note Draggable
+     */
+    function makeDraggable(element) {
+        let isDragging = false;
+        let startX, startY, startLeft, startTop;
+        
+        element.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startLeft = parseInt(element.style.left) || 0;
+            startTop = parseInt(element.style.top) || 0;
+            
+            element.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            element.style.left = (startLeft + deltaX) + 'px';
+            element.style.top = (startTop + deltaY) + 'px';
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                element.style.cursor = 'move';
+            }
+        });
+    }
+    
+    /**
+     * Start Note Timer
+     */
+    function startNoteTimer(noteId, timeRemaining) {
+        const noteEl = stickyNotes.get(noteId);
+        if (!noteEl) return;
+        
+        const timerEl = noteEl.querySelector('.surf-sticky-note-timer');
+        if (!timerEl) return;
+        
+        let timeLeft = timeRemaining;
+        
+        const timer = setInterval(() => {
+            timeLeft--;
+            timerEl.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                removeStickyNote(noteId);
+            }
+        }, 1000);
+        
+        noteTimers.set(noteId, timer);
+    }
+    
+    /**
+     * Remove Sticky Note
+     */
+    function removeStickyNote(noteId) {
+        const noteEl = stickyNotes.get(noteId);
+        if (noteEl) {
+            noteEl.classList.add('fade-out');
+            setTimeout(() => {
+                if (noteEl.parentNode) {
+                    noteEl.parentNode.removeChild(noteEl);
+                }
+                stickyNotes.delete(noteId);
+                noteTimers.delete(noteId);
+            }, 500);
+        }
+    }
+    
+    /**
+     * Delete Sticky Note
+     */
+    async function deleteStickyNote(noteId) {
+        try {
+            const response = await fetch(`${config.apiUrl}sticky-notes/${noteId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({ user_id: config.currentUser.id })
+            });
+            
+            if (response.ok) {
+                removeStickyNote(noteId);
+            } else {
+                console.error('Failed to delete sticky note:', response.status);
+            }
+        } catch (error) {
+            console.error('Failed to delete sticky note:', error);
+        }
+    }
+    
+    /**
+     * Handle Sticky Note Events from Other Users
+     */
+    function handleStickyNoteEvent(data) {
+        // Only process events from the same page
+        if (data.page !== window.location.pathname) return;
+        
+        switch (data.type) {
+            case 'note-created':
+                createStickyNoteElement(data.note);
+                break;
+            case 'note-deleted':
+                removeStickyNote(data.note.id);
+                break;
+        }
+    }
+    
+    /**
+     * Handle Keyboard Shortcuts
+     */
+    function handleKeyboardShortcuts(e) {
+        // Escape to close modal
+        if (e.key === 'Escape' && noteModal && noteModal.style.display !== 'none') {
+            closeNoteModal();
+        }
+    }
+    
+    /**
+     * Escape HTML
+     */
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Format Time
+     */
+    function formatTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
