@@ -41,8 +41,8 @@
 
 /* Notes Toggle Button */
 #surf-social-widget .surf-notes-toggle {
-    width: 36px;
-    height: 36px;
+    width: 45px;
+    height: 45px;
     border-radius: 50%;
     background: white !important;
     color: black !important;
@@ -1012,6 +1012,16 @@
         height: 24px;
         font-size: 10px;
         margin-left: -6px;
+    }
+    
+    .surf-notes-toggle {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .surf-notes-toggle svg {
+        width: 20px;
+        height: 20px;
     }
     
     /* Removed expand button responsive styles */
