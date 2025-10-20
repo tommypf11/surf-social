@@ -224,9 +224,6 @@
             notesToggle.addEventListener('click', toggleNotesMode);
         }
         
-        if (noteCancel) {
-            noteCancel.addEventListener('click', closeNoteModal);
-        }
         
         if (noteSend) {
             noteSend.addEventListener('click', saveStickyNote);
@@ -3350,10 +3347,9 @@
         
         noteEl.innerHTML = `
             <div class="surf-sticky-note-content">
-                <span class="surf-sticky-note-user">${escapeHtml(note.user_name)}:</span>
+                <span class="surf-sticky-note-user" style="color: ${note.color};">${escapeHtml(note.user_name)}:</span>
                 <span class="surf-sticky-note-text">${escapeHtml(note.message)}</span>
             </div>
-            <div class="surf-sticky-note-timer">${timeRemaining}</div>
         `;
         
         // Make note draggable

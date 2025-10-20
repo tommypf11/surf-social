@@ -1517,7 +1517,7 @@
     min-width: 200px;
     max-width: 300px;
     background: white !important;
-    border: 3px solid;
+    border: 2px solid;
     border-radius: 8px;
     padding: 12px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -1564,7 +1564,7 @@
 
 .surf-sticky-note-user {
     font-weight: 600;
-    color: #666;
+    color: inherit;
     flex-shrink: 0;
 }
 
@@ -1596,23 +1596,6 @@
     border-color: #999;
 }
 
-.surf-sticky-note-timer {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    width: 16px;
-    height: 16px;
-    background: #FF6B6B;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 10px;
-    font-weight: bold;
-    border: 2px solid white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
 
 .surf-sticky-note.fade-out {
     animation: noteFadeOut 0.5s ease-out forwards;
@@ -1746,31 +1729,6 @@
     transform: scale(0.95);
 }
 
-.surf-note-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-}
-
-.surf-note-actions button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-#surf-note-cancel {
-    background: #f5f5f5;
-    color: #666;
-}
-
-#surf-note-cancel:hover {
-    background: #e0e0e0;
-    color: #333;
-}
 
 /* Notes mode cursor */
 body.notes-mode {

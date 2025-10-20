@@ -113,9 +113,6 @@ if (!defined('ABSPATH')) {
                     </button>
                 </div>
             </div>
-            <div class="surf-note-actions">
-                <button id="surf-note-cancel">Cancel</button>
-            </div>
         </div>
     </div>
     
