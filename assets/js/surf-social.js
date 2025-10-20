@@ -39,9 +39,8 @@
     // Drawing State
     let isDrawMode = false;
     let isDrawing = false;
-    let drawingCanvas = null;
-    let drawingContext = null;
-    let drawingPaths = new Map();
+    let currentPath = [];
+    let drawings = new Map();
     let drawingTimers = new Map();
     
     // Message deduplication cache
@@ -74,7 +73,6 @@
     // Drawing DOM Elements
     const drawToggle = document.getElementById('surf-draw-toggle');
     const drawingContainer = document.getElementById('surf-drawing-container');
-    const drawingCanvas = document.getElementById('surf-drawing-canvas');
     
     // Guest Registration Elements
     const guestRegistration = document.getElementById('surf-guest-registration');
@@ -114,9 +112,6 @@
         loadInitialMessages();
         startCursorTracking();
         initStickyNotes();
-        
-        // Initialize drawing
-        initDrawing();
         
         // Initialize avatar dock state
         updateAvatarDock();
@@ -268,6 +263,14 @@
         // Page click listener for note creation
         document.addEventListener('click', handlePageClick);
         
+        // Drawing event listeners
+        document.addEventListener('mousedown', handleDrawStart);
+        document.addEventListener('mousemove', handleDrawMove);
+        document.addEventListener('mouseup', handleDrawEnd);
+        document.addEventListener('touchstart', handleDrawStart, { passive: false });
+        document.addEventListener('touchmove', handleDrawMove, { passive: false });
+        document.addEventListener('touchend', handleDrawEnd, { passive: false });
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
         
@@ -376,6 +379,8 @@
             channel.bind('client-cursor-leave', handleCursorLeave);
             channel.bind('client-note-created', handleStickyNoteEvent);
             channel.bind('client-note-deleted', handleStickyNoteEvent);
+            channel.bind('client-drawing-created', handleDrawingEvent);
+            channel.bind('client-drawing-deleted', handleDrawingEvent);
             channel.bind('client-new-message', handleNewMessage);
             channel.bind('client-user-joined', handleUserJoined);
             channel.bind('client-user-left', handleUserLeft);
@@ -401,6 +406,8 @@
             channel.bind('cursor-leave', handleCursorLeave);
             channel.bind('note-created', handleStickyNoteEvent);
             channel.bind('note-deleted', handleStickyNoteEvent);
+            channel.bind('drawing-created', handleDrawingEvent);
+            channel.bind('drawing-deleted', handleDrawingEvent);
         channel.bind('new-message', handleNewMessage);
         channel.bind('user-joined', handleUserJoined);
         channel.bind('user-left', handleUserLeft);
@@ -480,6 +487,10 @@
             case 'note-created':
             case 'note-deleted':
                 handleStickyNoteEvent(data);
+                break;
+            case 'drawing-created':
+            case 'drawing-deleted':
+                handleDrawingEvent(data);
                 break;
             case 'new-message':
                 handleNewMessage(data);
@@ -3577,57 +3588,20 @@
     }
     
     /**
-     * Initialize Drawing
-     */
-    function initDrawing() {
-        if (!drawingCanvas) return;
-        
-        drawingContext = drawingCanvas.getContext('2d');
-        
-        // Set canvas size to match viewport
-        resizeCanvas();
-        
-        // Add window resize listener
-        window.addEventListener('resize', resizeCanvas);
-        
-        // Add drawing event listeners
-        drawingCanvas.addEventListener('mousedown', startDrawing);
-        drawingCanvas.addEventListener('mousemove', draw);
-        drawingCanvas.addEventListener('mouseup', stopDrawing);
-        drawingCanvas.addEventListener('mouseout', stopDrawing);
-        
-        // Touch events for mobile
-        drawingCanvas.addEventListener('touchstart', handleTouch);
-        drawingCanvas.addEventListener('touchmove', handleTouch);
-        drawingCanvas.addEventListener('touchend', stopDrawing);
-    }
-    
-    /**
-     * Resize Canvas
-     */
-    function resizeCanvas() {
-        if (!drawingCanvas) return;
-        
-        drawingCanvas.width = window.innerWidth;
-        drawingCanvas.height = window.innerHeight;
-    }
-    
-    /**
      * Toggle Draw Mode
      */
     function toggleDrawMode() {
         isDrawMode = !isDrawMode;
         
         if (drawToggle) {
-            drawToggle.classList.toggle('active', isDrawMode);
+            if (isDrawMode) {
+                drawToggle.classList.add('active');
+                document.body.classList.add('draw-mode');
+            } else {
+                drawToggle.classList.remove('active');
+                document.body.classList.remove('draw-mode');
+            }
         }
-        
-        if (drawingContainer) {
-            drawingContainer.style.pointerEvents = isDrawMode ? 'auto' : 'none';
-        }
-        
-        // Update cursor
-        document.body.classList.toggle('draw-mode', isDrawMode);
         
         // Disable notes mode if enabling draw mode
         if (isDrawMode && isNotesMode) {
@@ -3636,127 +3610,189 @@
     }
     
     /**
-     * Start Drawing
+     * Handle Draw Start
      */
-    function startDrawing(e) {
+    function handleDrawStart(e) {
         if (!isDrawMode) return;
         
+        e.preventDefault();
         isDrawing = true;
-        const rect = drawingCanvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        currentPath = [];
         
-        drawingContext.beginPath();
-        drawingContext.moveTo(x, y);
-        drawingContext.strokeStyle = config.currentUser.color;
-        drawingContext.lineWidth = 1;
-        drawingContext.lineCap = 'round';
-        drawingContext.lineJoin = 'round';
+        const point = getEventPoint(e);
+        currentPath.push(point);
+        
+        // Create new drawing canvas
+        createDrawingCanvas();
     }
     
     /**
-     * Draw
+     * Handle Draw Move
      */
-    function draw(e) {
-        if (!isDrawing || !isDrawMode) return;
+    function handleDrawMove(e) {
+        if (!isDrawMode || !isDrawing) return;
         
-        const rect = drawingCanvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        e.preventDefault();
+        const point = getEventPoint(e);
+        currentPath.push(point);
         
-        drawingContext.lineTo(x, y);
-        drawingContext.stroke();
+        // Draw the current path
+        drawCurrentPath();
     }
     
     /**
-     * Stop Drawing
+     * Handle Draw End
      */
-    function stopDrawing() {
-        if (!isDrawing) return;
+    function handleDrawEnd(e) {
+        if (!isDrawMode || !isDrawing) return;
         
+        e.preventDefault();
         isDrawing = false;
         
-        // Create a new drawing path for timer management
-        const pathId = Date.now() + Math.random();
-        drawingPaths.set(pathId, {
-            id: pathId,
+        if (currentPath.length > 1) {
+            // Save the drawing
+            saveDrawing();
+        }
+        
+        currentPath = [];
+    }
+    
+    /**
+     * Get Event Point
+     */
+    function getEventPoint(e) {
+        const rect = document.body.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+    
+    /**
+     * Create Drawing Canvas
+     */
+    function createDrawingCanvas() {
+        if (!drawingContainer) return;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.pointerEvents = 'none';
+        canvas.style.zIndex = '999996';
+        
+        drawingContainer.appendChild(canvas);
+        
+        return canvas;
+    }
+    
+    /**
+     * Draw Current Path
+     */
+    function drawCurrentPath() {
+        const canvas = drawingContainer.querySelector('canvas:last-child');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = config.currentUser.color;
+        ctx.lineWidth = 1;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (currentPath.length > 1) {
+            ctx.beginPath();
+            ctx.moveTo(currentPath[0].x, currentPath[0].y);
+            
+            for (let i = 1; i < currentPath.length; i++) {
+                ctx.lineTo(currentPath[i].x, currentPath[i].y);
+            }
+            
+            ctx.stroke();
+        }
+    }
+    
+    /**
+     * Save Drawing
+     */
+    function saveDrawing() {
+        const canvas = drawingContainer.querySelector('canvas:last-child');
+        if (!canvas) return;
+        
+        const drawingId = 'drawing_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const drawingData = {
+            id: drawingId,
             user_id: config.currentUser.id,
             user_name: config.currentUser.name,
             color: config.currentUser.color,
-            page: window.location.pathname,
-            created_at: new Date().toISOString()
-        });
+            page_url: window.location.pathname,
+            created_at: new Date().toISOString(),
+            data_url: canvas.toDataURL()
+        };
         
-        // Start 10-second timer for this drawing
-        startDrawingTimer(pathId);
+        // Store drawing
+        drawings.set(drawingId, drawingData);
         
-        // Broadcast drawing to other users
-        broadcastDrawingEvent('drawing-created', drawingPaths.get(pathId));
-    }
-    
-    /**
-     * Handle Touch Events
-     */
-    function handleTouch(e) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 
-                                         e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
-        });
-        drawingCanvas.dispatchEvent(mouseEvent);
+        // Start 10-second timer
+        startDrawingTimer(drawingId);
+        
+        // Broadcast to other users
+        broadcastDrawingEvent('drawing-created', drawingData);
     }
     
     /**
      * Start Drawing Timer
      */
-    function startDrawingTimer(pathId) {
+    function startDrawingTimer(drawingId) {
         const timer = setTimeout(() => {
-            removeDrawing(pathId);
-        }, 10000); // 10 seconds
+            removeDrawing(drawingId);
+        }, 10000);
         
-        drawingTimers.set(pathId, timer);
+        drawingTimers.set(drawingId, timer);
     }
     
     /**
      * Remove Drawing
      */
-    function removeDrawing(pathId) {
-        // Clear the entire canvas and redraw remaining paths
-        drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    function removeDrawing(drawingId) {
+        const canvas = drawingContainer.querySelector(`canvas[data-drawing-id="${drawingId}"]`);
+        if (canvas) {
+            canvas.remove();
+        }
         
-        // Remove from maps
-        drawingPaths.delete(pathId);
-        drawingTimers.delete(pathId);
-        
-        // Broadcast removal to other users
-        broadcastDrawingEvent('drawing-deleted', { id: pathId, page: window.location.pathname });
+        drawings.delete(drawingId);
+        drawingTimers.delete(drawingId);
     }
     
     /**
-     * Broadcast Drawing Events
+     * Broadcast Drawing Event
      */
-    function broadcastDrawingEvent(eventType, data) {
-        const eventData = {
+    function broadcastDrawingEvent(eventType, drawing) {
+        const data = {
             type: eventType,
-            ...data,
+            drawing: drawing,
             page: window.location.pathname
         };
         
         if (pusher) {
             try {
-                channel.trigger('client-' + eventType, eventData);
+                channel.trigger('client-' + eventType, data);
             } catch (error) {
                 console.error('Failed to trigger drawing event:', error);
             }
         } else if (websocket && websocket.readyState === WebSocket.OPEN) {
-            websocket.send(JSON.stringify(eventData));
+            websocket.send(JSON.stringify(data));
         }
     }
     
     /**
-     * Handle Drawing Events from Other Users
+     * Handle Drawing Event
      */
     function handleDrawingEvent(data) {
         // Only process events from the same page
@@ -3764,14 +3800,43 @@
         
         switch (data.type) {
             case 'drawing-created':
-                // Note: We don't actually redraw other users' drawings in real-time
-                // as that would require complex path management. The 10-second timer
-                // ensures drawings disappear for everyone at the same time.
+                createDrawingFromData(data.drawing);
                 break;
             case 'drawing-deleted':
-                // Drawing will be removed by its own timer
+                removeDrawing(data.drawing.id);
                 break;
         }
+    }
+    
+    /**
+     * Create Drawing From Data
+     */
+    function createDrawingFromData(drawingData) {
+        if (!drawingContainer) return;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.pointerEvents = 'none';
+        canvas.style.zIndex = '999996';
+        canvas.dataset.drawingId = drawingData.id;
+        
+        // Load the drawing data
+        const img = new Image();
+        img.onload = function() {
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+        };
+        img.src = drawingData.data_url;
+        
+        drawingContainer.appendChild(canvas);
+        
+        // Store drawing and start timer
+        drawings.set(drawingData.id, drawingData);
+        startDrawingTimer(drawingData.id);
     }
 
     // Initialize when DOM is ready

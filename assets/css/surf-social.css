@@ -39,19 +39,6 @@
     z-index: 1000000;
 }
 
-/* Toolbar */
-.surf-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: var(--surf-backdrop-blur);
-    border-radius: 22.5px;
-    padding: 6px;
-    box-shadow: var(--surf-shadow);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
 /* Notes Toggle Button */
 #surf-social-widget .surf-notes-toggle {
     width: 45px;
@@ -1080,12 +1067,6 @@
     .surf-notes-toggle svg {
         width: 20px;
         height: 20px;
-    }
-    
-    .surf-toolbar {
-        gap: 6px;
-        padding: 4px;
-        border-radius: 17.5px;
     }
     
     .surf-draw-toggle {
