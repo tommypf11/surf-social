@@ -3901,12 +3901,12 @@
             // Create audio context for processing
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Use the most compatible format - prefer MP4 for better browser support
+            // Use the most compatible format - prefer WebM for better Opus support
             let mimeType = '';
-            if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            if (MediaRecorder.isTypeSupported('audio/webm')) {
+                mimeType = 'audio/webm'; // Better Opus codec support
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
                 mimeType = 'audio/mp4';
-            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-                mimeType = 'audio/webm';
             } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
                 mimeType = 'audio/ogg';
             }
@@ -3919,7 +3919,7 @@
             
             // Handle data available
             mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
+                if (event.data.size > 2000) { // Only send chunks larger than 2KB for reliable playback
                     audioChunks.push(event.data);
                     // Broadcast immediately for real-time audio
                     broadcastVoiceAudio(event.data);
@@ -3937,7 +3937,7 @@
             };
             
             // Start recording with larger chunks for better compatibility
-            mediaRecorder.start(1000); // Record in 1-second chunks for better format support
+            mediaRecorder.start(2000); // Record in 2-second chunks for better playback
             
             // Update UI
             isVoiceMode = true;
@@ -3988,9 +3988,15 @@
      * Broadcast Voice Audio
      */
     function broadcastVoiceAudio(audioBlob) {
-        // Check if blob is valid
+        // Check if blob is valid and has sufficient size
         if (!audioBlob || audioBlob.size === 0) {
             console.warn('Invalid audio blob, skipping broadcast');
+            return;
+        }
+        
+        // Ensure minimum size for reliable playback (at least 2KB)
+        if (audioBlob.size < 2000) {
+            console.warn('Audio blob too small for reliable playback:', audioBlob.size, 'bytes');
             return;
         }
         
@@ -4069,6 +4075,12 @@
         try {
             console.log('Attempting simple audio playback');
             
+            // Validate audio data before attempting to play
+            if (!audioData || audioData.length < 100) {
+                console.error('Audio data too short or invalid:', audioData ? audioData.length : 'no data');
+                return;
+            }
+            
             // Create audio element
             const audio = new Audio();
             audio.volume = 0.7;
@@ -4076,9 +4088,20 @@
             
             // Add event listeners
             audio.onloadstart = () => console.log('Audio loading started');
+            audio.onloadedmetadata = () => {
+                console.log('Audio metadata loaded, duration:', audio.duration);
+                if (audio.duration < 0.1) {
+                    console.error('Audio too short to play:', audio.duration);
+                    return;
+                }
+            };
             audio.oncanplay = () => {
-                console.log('Audio can play, attempting to play');
-                audio.play().catch(e => console.error('Play failed:', e));
+                console.log('Audio can play, duration:', audio.duration);
+                if (audio.duration > 0) {
+                    audio.play().catch(e => console.error('Play failed:', e));
+                } else {
+                    console.error('Audio has no duration, skipping play');
+                }
             };
             audio.onplay = () => console.log('Audio started playing');
             audio.onended = () => console.log('Audio playback ended');
