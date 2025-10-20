@@ -917,51 +917,6 @@
     visibility: visible;
 }
 
-/* Current user cursor styling */
-.surf-cursor.current-user {
-    z-index: 1000000;
-}
-
-.surf-cursor.current-user .surf-cursor-pointer {
-    width: 0;
-    height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-bottom: 12px solid currentColor;
-    transform: rotate(-45deg);
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-}
-
-.surf-cursor.current-user .surf-cursor-name {
-    display: none; /* Hide name for current user */
-}
-
-/* Add a subtle glow effect for current user cursor */
-.surf-cursor.current-user::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: currentColor;
-    border-radius: 50%;
-    opacity: 0.2;
-    z-index: -1;
-    animation: cursorGlow 2s ease-in-out infinite alternate;
-}
-
-@keyframes cursorGlow {
-    0% {
-        opacity: 0.1;
-        transform: scale(0.8);
-    }
-    100% {
-        opacity: 0.3;
-        transform: scale(1.1);
-    }
-}
-
 
 /* Branding */
 .surf-branding {

@@ -461,12 +461,6 @@
         let batchTimeout = null;
         let pendingUpdates = [];
         
-        // Create current user's cursor
-        if (!currentUsers.has(config.currentUser.id)) {
-            const currentUserCursor = createCursor(config.currentUser);
-            currentUsers.set(config.currentUser.id, currentUserCursor);
-        }
-        
         document.addEventListener('mousemove', (e) => {
             const now = Date.now();
             
@@ -494,13 +488,6 @@
                 y: coords.y,
                 time: now
             };
-            
-            // Update current user's cursor position
-            const currentUserCursor = currentUsers.get(config.currentUser.id);
-            if (currentUserCursor && currentUserCursor.element) {
-                applyPreciseCursorPosition(currentUserCursor.element, coords.x, coords.y);
-                currentUserCursor.lastSeen = now;
-            }
             
             broadcastCursorPosition(coords.x, coords.y);
         });
@@ -692,14 +679,7 @@
      */
     function createCursor(user) {
         const cursor = document.createElement('div');
-        const isCurrentUser = user.id === config.currentUser.id;
-        
-        if (isCurrentUser) {
-            cursor.className = 'surf-cursor current-user';
-        } else {
-            cursor.className = 'surf-cursor';
-        }
-        
+        cursor.className = 'surf-cursor';
         cursor.style.color = user.color || colors[user.id % colors.length];
         
         const pointer = document.createElement('div');
@@ -707,18 +687,12 @@
         
         const namePill = document.createElement('div');
         namePill.className = 'surf-cursor-name';
-        
-        if (isCurrentUser) {
-            // Don't show name for current user
-            namePill.style.display = 'none';
-        } else {
-            namePill.textContent = user.name || 'Unknown User';
-            namePill.style.color = 'white';
-            namePill.style.backgroundColor = user.color || colors[user.id % colors.length];
-            namePill.style.display = 'block';
-            namePill.style.opacity = '1';
-            namePill.style.visibility = 'visible';
-        }
+        namePill.textContent = user.name || 'Unknown User';
+        namePill.style.color = 'white';
+        namePill.style.backgroundColor = user.color || colors[user.id % colors.length];
+        namePill.style.display = 'block';
+        namePill.style.opacity = '1';
+        namePill.style.visibility = 'visible';
         
         cursor.appendChild(pointer);
         cursor.appendChild(namePill);
@@ -2820,8 +2794,7 @@
         const usersToRemove = [];
         
         currentUsers.forEach((cursor, userId) => {
-            // Don't remove the current user's cursor
-            if (userId !== config.currentUser.id && now - cursor.lastSeen > userTimeoutThreshold) {
+            if (now - cursor.lastSeen > userTimeoutThreshold) {
                 usersToRemove.push(userId);
             }
         });
