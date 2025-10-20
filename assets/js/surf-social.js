@@ -236,6 +236,12 @@
                     saveStickyNote();
                 }
             });
+            
+            // Auto-expand textarea
+            noteMessage.addEventListener('input', function() {
+                this.style.height = '20px';
+                this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+            });
         }
         
         // Page click listener for note creation
@@ -3248,6 +3254,7 @@
             noteModal.style.display = 'flex';
             if (noteMessage) {
                 noteMessage.value = '';
+                noteMessage.style.height = '20px';
                 noteMessage.focus();
             }
         }
@@ -3409,16 +3416,12 @@
         const noteEl = stickyNotes.get(noteId);
         if (!noteEl) return;
         
-        const timerEl = noteEl.querySelector('.surf-sticky-note-timer');
-        if (!timerEl) return;
-        
         // Clear any existing timer for this note
         if (noteTimers.has(noteId)) {
             clearInterval(noteTimers.get(noteId));
         }
         
         let timeLeft = Math.max(0, timeRemaining);
-        timerEl.textContent = timeLeft;
         
         if (timeLeft <= 0) {
             removeStickyNote(noteId);
@@ -3427,7 +3430,6 @@
         
         const timer = setInterval(() => {
             timeLeft--;
-            timerEl.textContent = timeLeft;
             
             if (timeLeft <= 0) {
                 clearInterval(timer);
