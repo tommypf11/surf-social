@@ -40,6 +40,7 @@
     let isDrawMode = false;
     let isDrawing = false;
     let currentPath = [];
+    let currentDrawingId = null;
     let drawings = new Map();
     let drawingTimers = new Map();
     
@@ -3623,7 +3624,10 @@
         currentPath.push(point);
         
         // Create new drawing canvas
-        createDrawingCanvas();
+        const result = createDrawingCanvas();
+        if (result) {
+            currentDrawingId = result.drawingId;
+        }
     }
     
     /**
@@ -3677,6 +3681,8 @@
     function createDrawingCanvas() {
         if (!drawingContainer) return;
         
+        const drawingId = 'drawing_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
         const canvas = document.createElement('canvas');
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -3685,17 +3691,18 @@
         canvas.style.left = '0';
         canvas.style.pointerEvents = 'none';
         canvas.style.zIndex = '999996';
+        canvas.dataset.drawingId = drawingId;
         
         drawingContainer.appendChild(canvas);
         
-        return canvas;
+        return { canvas, drawingId };
     }
     
     /**
      * Draw Current Path
      */
     function drawCurrentPath() {
-        const canvas = drawingContainer.querySelector('canvas:last-child');
+        const canvas = drawingContainer.querySelector(`canvas[data-drawing-id="${currentDrawingId}"]`);
         if (!canvas) return;
         
         const ctx = canvas.getContext('2d');
@@ -3722,12 +3729,11 @@
      * Save Drawing
      */
     function saveDrawing() {
-        const canvas = drawingContainer.querySelector('canvas:last-child');
+        const canvas = drawingContainer.querySelector(`canvas[data-drawing-id="${currentDrawingId}"]`);
         if (!canvas) return;
         
-        const drawingId = 'drawing_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         const drawingData = {
-            id: drawingId,
+            id: currentDrawingId,
             user_id: config.currentUser.id,
             user_name: config.currentUser.name,
             color: config.currentUser.color,
@@ -3737,13 +3743,16 @@
         };
         
         // Store drawing
-        drawings.set(drawingId, drawingData);
+        drawings.set(currentDrawingId, drawingData);
         
-        // Start 10-second timer
-        startDrawingTimer(drawingId);
+        // Start 5-second timer
+        startDrawingTimer(currentDrawingId);
         
         // Broadcast to other users
         broadcastDrawingEvent('drawing-created', drawingData);
+        
+        // Reset current drawing ID
+        currentDrawingId = null;
     }
     
     /**
@@ -3752,7 +3761,7 @@
     function startDrawingTimer(drawingId) {
         const timer = setTimeout(() => {
             removeDrawing(drawingId);
-        }, 10000);
+        }, 5000);
         
         drawingTimers.set(drawingId, timer);
     }
@@ -3766,8 +3775,13 @@
             canvas.remove();
         }
         
+        // Clear timer
+        if (drawingTimers.has(drawingId)) {
+            clearTimeout(drawingTimers.get(drawingId));
+            drawingTimers.delete(drawingId);
+        }
+        
         drawings.delete(drawingId);
-        drawingTimers.delete(drawingId);
     }
     
     /**
