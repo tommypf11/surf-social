@@ -3901,29 +3901,17 @@
             // Create audio context for processing
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Determine supported MIME type with more options
+            // Use a simpler approach - try to use the most compatible format
             let mimeType = '';
-            const supportedTypes = [
-                'audio/webm;codecs=opus',
-                'audio/webm',
-                'audio/mp4;codecs=mp4a.40.2',
-                'audio/mp4',
-                'audio/wav',
-                'audio/ogg;codecs=opus',
-                'audio/ogg'
-            ];
-            
-            for (const type of supportedTypes) {
-                if (MediaRecorder.isTypeSupported(type)) {
-                    mimeType = type;
-                    console.log('Using audio format:', mimeType);
-                    break;
-                }
+            if (MediaRecorder.isTypeSupported('audio/webm')) {
+                mimeType = 'audio/webm';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+                mimeType = 'audio/ogg';
             }
             
-            if (!mimeType) {
-                console.warn('No supported audio format found, using default');
-            }
+            console.log('Using audio format:', mimeType || 'default');
             
             // Create media recorder
             const options = mimeType ? { mimeType } : {};
@@ -4070,64 +4058,94 @@
             return;
         }
         
+        // Try Web Audio API approach first
+        playAudioWithWebAudio(data.audioData).catch(error => {
+            console.log('Web Audio API failed, trying HTML5 Audio:', error);
+            // Fallback to HTML5 Audio
+            playAudioWithHTML5(data.audioData);
+        });
+    }
+    
+    /**
+     * Play Audio with Web Audio API
+     */
+    async function playAudioWithWebAudio(audioData) {
         try {
-            // Create audio element and play
-            const audio = new Audio();
-            audio.volume = 0.7; // Slightly lower volume for received audio
-            audio.preload = 'auto';
+            // Convert data URL to ArrayBuffer
+            const response = await fetch(audioData);
+            const arrayBuffer = await response.arrayBuffer();
             
-            // Add event listeners for debugging
-            audio.onloadstart = () => console.log('Audio loading started');
-            audio.oncanplay = () => console.log('Audio can play');
-            audio.onplay = () => console.log('Audio started playing');
-            audio.onended = () => console.log('Audio playback ended');
+            // Create audio context
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Add error handling
-            audio.onerror = (error) => {
-                console.error('Audio playback error:', error);
-                console.error('Audio error details:', {
-                    error: error,
-                    networkState: audio.networkState,
-                    readyState: audio.readyState,
-                    src: audio.src ? audio.src.substring(0, 100) + '...' : 'no src'
-                });
-            };
+            // Decode audio data
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
             
-            // Set the source and try to play
-            audio.src = data.audioData;
+            // Create buffer source
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
             
-            // Wait for the audio to be ready
-            audio.addEventListener('canplay', () => {
-                const playPromise = audio.play();
-                if (playPromise !== undefined) {
-                    playPromise.then(() => {
-                        console.log('Audio playback started successfully');
-                    }).catch(error => {
-                        console.error('Error playing voice audio:', error);
-                        // Try to play again after a short delay
-                        setTimeout(() => {
-                            audio.play().catch(e => console.error('Retry failed:', e));
-                        }, 100);
-                    });
-                }
-            });
+            // Create gain node for volume control
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = 0.7;
             
-            // Fallback: try to play after a short delay even if canplay doesn't fire
-            setTimeout(() => {
-                if (audio.readyState >= 2) { // HAVE_CURRENT_DATA or higher
-                    const playPromise = audio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(error => {
-                            console.error('Fallback play failed:', error);
-                            // Try alternative approach with blob URL
-                            tryAlternativeAudioPlayback(data.audioData);
-                        });
-                    }
-                }
-            }, 200);
+            // Connect nodes
+            source.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Play the audio
+            source.start(0);
+            
+            console.log('Audio played successfully with Web Audio API');
             
         } catch (error) {
-            console.error('Error creating audio element:', error);
+            console.error('Web Audio API error:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Play Audio with HTML5 Audio (Fallback)
+     */
+    function playAudioWithHTML5(audioData) {
+        try {
+            // Create audio element
+            const audio = new Audio();
+            audio.volume = 0.7;
+            audio.preload = 'auto';
+            
+            // Add event listeners
+            audio.oncanplay = () => {
+                console.log('HTML5 Audio can play');
+                audio.play().catch(e => console.error('HTML5 play failed:', e));
+            };
+            
+            audio.onerror = (error) => {
+                console.error('HTML5 Audio error:', error);
+                // Try alternative method
+                tryAlternativeAudioPlayback(audioData);
+            };
+            
+            // Set source
+            audio.src = audioData;
+            
+        } catch (error) {
+            console.error('HTML5 Audio creation error:', error);
+        }
+    }
+    
+    /**
+     * Convert Audio to WAV Format
+     */
+    async function convertToWAV(audioBlob) {
+        try {
+            // For now, just return the original blob
+            // In a production environment, you'd want to use a library like lamejs or similar
+            // to convert the audio to WAV format for better browser compatibility
+            return audioBlob;
+        } catch (error) {
+            console.error('Error converting to WAV:', error);
+            return null;
         }
     }
     
