@@ -3341,6 +3341,7 @@
         noteEl.style.left = note.x_position + 'px';
         noteEl.style.top = note.y_position + 'px';
         noteEl.style.backgroundColor = note.color;
+        noteEl.style.borderColor = note.color;
         noteEl.dataset.noteId = note.id;
         
         // Always start with 10 seconds for new notes
@@ -3348,7 +3349,7 @@
         
         noteEl.innerHTML = `
             <div class="surf-sticky-note-content">
-                <span class="surf-sticky-note-user" style="color: ${note.color};">${escapeHtml(note.user_name)}:</span>
+                <span class="surf-sticky-note-user">${escapeHtml(note.user_name)}:</span>
                 <span class="surf-sticky-note-text">${escapeHtml(note.message)}</span>
             </div>
         `;
@@ -3360,8 +3361,7 @@
         stickyNotes.set(note.id, noteEl);
         
         // Start countdown timer - always start with 10 seconds for new notes
-        const timerDuration = timeRemaining > 0 ? timeRemaining : 10;
-        startNoteTimer(note.id, timerDuration);
+        startNoteTimer(note.id, 10);
     }
     
     /**
