@@ -3222,6 +3222,31 @@
                 noteUserInitial.textContent = config.currentUser.name.charAt(0).toUpperCase();
             }
             
+            // Position modal at click location
+            const modalContent = noteModal.querySelector('.surf-note-modal-content');
+            if (modalContent) {
+                // Adjust position to keep modal on screen
+                const rect = modalContent.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                
+                let left = x;
+                let top = y;
+                
+                // Adjust if modal would go off screen
+                if (left + 350 > viewportWidth) {
+                    left = viewportWidth - 350 - 20;
+                }
+                if (top + 200 > viewportHeight) {
+                    top = viewportHeight - 200 - 20;
+                }
+                if (left < 20) left = 20;
+                if (top < 20) top = 20;
+                
+                modalContent.style.left = left + 'px';
+                modalContent.style.top = top + 'px';
+            }
+            
             noteModal.style.display = 'flex';
             if (noteMessage) {
                 noteMessage.value = '';
@@ -3320,20 +3345,13 @@
         noteEl.style.backgroundColor = note.color;
         noteEl.dataset.noteId = note.id;
         
-        // Calculate time remaining - ensure it's exactly 10 seconds from creation
-        const createdAt = new Date(note.created_at);
-        const now = new Date();
-        const elapsed = Math.floor((now - createdAt) / 1000);
-        const timeRemaining = Math.max(0, 10 - elapsed);
+        // Always start with 10 seconds for new notes
+        const timeRemaining = 10;
         
         noteEl.innerHTML = `
-            <div class="surf-sticky-note-header">
-                <span>${escapeHtml(note.user_name)}</span>
-                <span>${formatTime(note.created_at)}</span>
-            </div>
-            <div class="surf-sticky-note-content">${escapeHtml(note.message)}</div>
-            <div class="surf-sticky-note-actions">
-                <button onclick="deleteStickyNote(${note.id})">Delete</button>
+            <div class="surf-sticky-note-content">
+                <span class="surf-sticky-note-user">${escapeHtml(note.user_name)}:</span>
+                <span class="surf-sticky-note-text">${escapeHtml(note.message)}</span>
             </div>
             <div class="surf-sticky-note-timer">${timeRemaining}</div>
         `;

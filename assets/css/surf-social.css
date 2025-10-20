@@ -1516,8 +1516,8 @@
     position: absolute;
     min-width: 200px;
     max-width: 300px;
-    background: #FFD93D;
-    border: 2px solid #FFA500;
+    background: white !important;
+    border: 3px solid;
     border-radius: 8px;
     padding: 12px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -1553,11 +1553,25 @@
 }
 
 .surf-sticky-note-content {
-    margin-bottom: 8px;
-    word-wrap: break-word;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     color: #333;
+    word-wrap: break-word;
     font-size: 14px;
     line-height: 1.4;
+}
+
+.surf-sticky-note-user {
+    font-weight: 600;
+    color: #666;
+    flex-shrink: 0;
+}
+
+.surf-sticky-note-text {
+    color: #333;
+    word-wrap: break-word;
+    flex: 1;
 }
 
 .surf-sticky-note-actions {
@@ -1632,12 +1646,13 @@
 
 .surf-note-modal-content {
     background: white;
-    padding: 20px;
-    border-radius: 16px;
-    max-width: 500px;
-    width: 90%;
+    padding: 16px;
+    border-radius: 12px;
+    max-width: 350px;
+    width: auto;
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     animation: modalAppear 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: absolute;
 }
 
 @keyframes modalAppear {
@@ -1704,18 +1719,22 @@
 }
 
 .surf-note-send-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: #f0f0f0;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #666;
-    margin-left: 8px;
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    background: #f0f0f0 !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    color: #666 !important;
+    margin-left: 8px !important;
+    padding: 0 !important;
+    font-size: 16px !important;
+    box-shadow: none !important;
+    outline: none !important;
 }
 
 .surf-note-send-btn:hover {
