@@ -231,7 +231,8 @@
         
         if (noteMessage) {
             noteMessage.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && e.ctrlKey) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
                     saveStickyNote();
                 }
             });
